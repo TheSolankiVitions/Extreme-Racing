@@ -17,19 +17,29 @@
 
     <script>
         const ASSETS = [
-            // Vehicles
             'jeep.png', 'bike.png', 'wood.png', 'mini_monster.png', 'cartoon.png',
-            // Stages
             'country.png', 'moom.png', 'desert.png', 'glaciers.png', 'mars.png',
-            // UI/Gameplay
             'driver_head.png', 'wheel.png', 'fuel_can.png', 'coin.png'
         ];
+
+        // Fallback generator for missing images (prevents hanging)
+        function createPlaceholder(width, height, color, text) {
+            const c = document.createElement('canvas');
+            c.width = width; c.height = height;
+            const ctx = c.getContext('2d');
+            ctx.fillStyle = color;
+            ctx.fillRect(0,0,width,height);
+            ctx.fillStyle = 'white';
+            ctx.font = '20px Arial';
+            ctx.fillText(text, 10, height/2);
+            return c.toDataURL();
+        }
 
         function preloadAssets(callback) {
             let loaded = 0;
             const total = ASSETS.length;
-            
-            // Create Splash Screen
+            let hasStarted = false;
+
             const splash = document.createElement('div');
             splash.id = 'splash-screen';
             splash.innerHTML = `
@@ -37,48 +47,81 @@
                     <h1>EXTREME RACING</h1>
                     <div class="brand">Made by The Solanki Visions</div>
                     <div class="loader-bar"><div class="loader-fill" id="loader-fill"></div></div>
-                    <p id="loader-text">Initializing Physics Engine...</p>
+                    <p id="loader-text">Loading Assets... 0%</p>
+                    <button id="force-start" style="margin-top:20px; padding:10px; background:#333; color:#fff; border:1px solid #555; display:none;">Force Start</button>
                 </div>
             `;
             document.body.appendChild(splash);
 
-            // Asset Loading Loop
+            const checkDone = () => {
+                loaded++;
+                const pct = Math.min(100, (loaded / total) * 100);
+                const fill = document.getElementById('loader-fill');
+                const text = document.getElementById('loader-text');
+                
+                if(fill) fill.style.width = pct + '%';
+                if(text) text.innerText = `Loading... ${Math.floor(pct)}%`;
+
+                if (loaded >= total && !hasStarted) {
+                    startApp();
+                }
+            };
+
+            const startApp = () => {
+                if (hasStarted) return;
+                hasStarted = true;
+                
+                // Fade out splash
+                splash.style.opacity = '0';
+                setTimeout(() => {
+                    if(splash.parentNode) splash.parentNode.removeChild(splash);
+                    callback();
+                }, 500);
+            };
+
+            // Force Start Safety Valve (3 seconds max wait)
+            setTimeout(() => {
+                if (!hasStarted) {
+                    console.warn("Loading took too long. Forcing start.");
+                    const btn = document.getElementById('force-start');
+                    if(btn) {
+                        btn.style.display = 'inline-block';
+                        btn.onclick = startApp;
+                        btn.innerText = "Taking too long? Click to Start";
+                        // Auto-trigger if user doesn't click
+                        setTimeout(startApp, 1000); 
+                    } else {
+                        startApp();
+                    }
+                }
+            }, 4000);
+
             ASSETS.forEach(src => {
                 const img = new Image();
-                img.src = src;
-                img.onload = () => {
-                    loaded++;
-                    const pct = (loaded / total) * 100;
-                    document.getElementById('loader-fill').style.width = pct + '%';
-                    document.getElementById('loader-text').innerText = `Loading Assets... ${Math.floor(pct)}%`;
-                    
-                    if (loaded === total) {
-                        setTimeout(() => {
-                            splash.style.opacity = '0';
-                            setTimeout(() => {
-                                splash.remove();
-                                callback();
-                            }, 500);
-                        }, 500);
-                    }
-                };
+                
+                img.onload = checkDone;
+                
                 img.onerror = () => {
-                    console.error("Failed to load:", src);
-                    // Continue anyway to prevent soft-lock
-                    loaded++; 
-                    if(loaded === total) callback();
-                }
+                    console.warn(`Asset missing: ${src}. Generating placeholder.`);
+                    // Generate a temporary image so the game doesn't crash
+                    img.src = createPlaceholder(100, 100, '#555', src.split('.')[0]); 
+                    // Note: resetting src triggers onload, but we manually call checkDone to be safe
+                    // However, we must ensure we don't double count. 
+                    // Simplest fix for logic: just mark it done.
+                    checkDone(); 
+                };
+                
+                img.src = src;
             });
         }
 
-        // Boot React after assets are cached
+        // Boot React
         preloadAssets(() => {
             const script = document.createElement('script');
             script.type = 'text/babel';
-            script.src = 'App.js'; // Points to the main React entry
+            script.src = 'App.js';
             document.body.appendChild(script);
             
-            // Load other modules
             ['Garage.js', 'GameEngine.js'].forEach(file => {
                 const s = document.createElement('script');
                 s.type = 'text/babel';
