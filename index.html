@@ -3,16 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Extreme Racing v6.0 | The Solanki Visions</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Extreme Racing | The Solanki Visions</title>
     
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div id="root"></div>
-    <script src="GameEngine.js"></script>
+
+    <script>
+        const ASSETS = [
+            'jeep.png', 'bike.png', 'wood.png', 'mini_monster.png', 'cartoon.png',
+            'country.png', 'moom.png', 'desert.png', 'glaciers.png', 'mars.png',
+            'driver_head.png', 'fuel_can.png', 'coin.png', 'wheel.png' // Assumed generic assets
+        ];
+
+        function preloadImages() {
+            let loaded = 0;
+            const total = ASSETS.length;
+            const splash = document.createElement('div');
+            splash.className = 'splash-screen';
+            splash.innerHTML = `<h1>EXTREME RACING</h1><p>Made by The Solanki Visions</p><div class="loader">0%</div>`;
+            document.body.appendChild(splash);
+
+            ASSETS.forEach(src => {
+                const img = new Image();
+                img.src = src; // Ensure these files exist in your root folder
+                img.onload = () => {
+                    loaded++;
+                    document.querySelector('.loader').innerText = Math.floor((loaded/total)*100) + '%';
+                    if (loaded === total) {
+                        setTimeout(() => {
+                            splash.remove();
+                            // Signal React to mount (handled in App.js logic usually, but here we just verify)
+                        }, 500);
+                    }
+                };
+            });
+        }
+        window.onload = preloadImages;
+    </script>
+
+    <script type="text/babel" src="GameEngine.js"></script>
     <script type="text/babel" src="Garage.js"></script>
     <script type="text/babel" src="App.js"></script>
 </body>
