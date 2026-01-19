@@ -97,7 +97,7 @@
                                 <div key={item.id} className={`glass-panel card ${isSelected ? 'selected' : ''}`}
                                      onClick={() => isOwned && (tab==='vehicles' ? setSelectedVehicle(item.id) : setSelectedStage(item.id))}>
                                     <div style={{alignSelf:'flex-start', fontSize:'0.8rem', color:'#aaa'}}>{isOwned ? 'OWNED' : 'LOCKED'}</div>
-                                    <img src={item.id} onError={(e)=>{e.target.style.display='none'; e.target.parentNode.innerHTML += '<div style="height:100px; display:flex; align-items:center;">Asset Missing</div>'}} />
+                                    <img src={item.id} onError={(e)=>{e.target.style.display='none'; e.target.parentNode.style.border='1px solid red';}} />
                                     <h3>{item.name}</h3>
                                     {isOwned ? 
                                         <button className="btn btn-select">{isSelected ? 'SELECTED' : 'SELECT'}</button> 
@@ -136,7 +136,7 @@
                 const ctx = canvas.getContext('2d');
 
                 // --- IMAGES ---
-                // We use new Image() but we handle the case if they aren't ready yet
+                // We preload them. If they fail, we just draw boxes.
                 const sprites = {
                     chassis: new Image(), wheel: new Image(), head: new Image(),
                     stage: new Image(), coin: new Image(), fuel: new Image()
@@ -150,12 +150,16 @@
 
                 // --- PHYSICS OBJECTS ---
                 const group = Body.nextGroup(true);
-                // Car
+                // Car Chassis
                 const chassis = Bodies.rectangle(200, 300, 120, 50, { collisionFilter:{group}, density:0.002, friction:0.5, label:'chassis' });
+                
+                // Wheels (Present for physics, but we will HIDE them visually)
                 const w1 = Bodies.circle(150, 350, 25, { collisionFilter:{group}, friction:0.9, density:0.01, label:'wheel' });
                 const w2 = Bodies.circle(250, 350, 25, { collisionFilter:{group}, friction:0.9, density:0.01, label:'wheel' });
+                
                 const ax1 = Constraint.create({ bodyA:chassis, bodyB:w1, pointA:{x:-45, y:25}, stiffness:0.08, damping:0.1, length:45 });
                 const ax2 = Constraint.create({ bodyA:chassis, bodyB:w2, pointA:{x:45, y:25}, stiffness:0.08, damping:0.1, length:45 });
+                
                 // Head
                 const head = Bodies.circle(200, 250, 15, { collisionFilter:{group}, label:'head' });
                 const neck = Constraint.create({ bodyA:chassis, bodyB:head, pointA:{x:0,y:-30}, stiffness:0.2, length:5 });
@@ -168,6 +172,7 @@
                 function addGround(startX) {
                     for(let i=0; i<10; i++){
                         const y = 600 + Math.sin(xOff*0.02)*150 + Math.sin(xOff*0.05)*50;
+                        // Ground blocks
                         const ground = Bodies.rectangle(startX+(i*120), y+300, 120, 600, { isStatic:true, label:'ground', friction:1 });
                         terrain.push(ground);
                         Composite.add(world, ground);
@@ -238,27 +243,27 @@
                     const cx = -px + window.innerWidth/3;
                     const cy = -chassis.position.y + window.innerHeight/2;
                     
-                    // BG
+                    // 1. Draw Background (Fixed: No Pattern, Parallax Wallpaper)
                     ctx.setTransform(1,0,0,1,0,0);
                     ctx.fillStyle = '#111';
                     ctx.fillRect(0,0,canvas.width, canvas.height);
-                    if(sprites.stage.complete) {
-                        const bgX = (cx * 0.5) % canvas.width;
+                    
+                    if(sprites.stage.complete && sprites.stage.naturalWidth !== 0) {
+                        // Draw image stretched to cover screen (Safe Mode)
+                        // Parallax offset
+                        const bgX = (cx * 0.2) % canvas.width;
                         try {
+                            // Draw twice for seamless loop
                             ctx.drawImage(sprites.stage, bgX, 0, canvas.width, canvas.height);
                             ctx.drawImage(sprites.stage, bgX+canvas.width, 0, canvas.width, canvas.height);
+                            ctx.drawImage(sprites.stage, bgX-canvas.width, 0, canvas.width, canvas.height);
                         } catch(e){}
                     }
 
                     ctx.translate(cx, cy);
 
-                    // Ground
-                    ctx.fillStyle = '#3a3a3a'; 
-                    // If stage image loaded, use pattern, else solid color
-                    if(sprites.stage.complete && sprites.stage.naturalWidth > 0) {
-                        try { ctx.fillStyle = ctx.createPattern(sprites.stage, 'repeat'); } catch(e){}
-                    }
-                    
+                    // 2. Draw Terrain (Fixed: Solid Color instead of Pattern)
+                    ctx.fillStyle = '#2d2d2d'; // Dark Grey Ground
                     ctx.beginPath();
                     terrain.forEach(t => {
                         ctx.moveTo(t.vertices[0].x, t.vertices[0].y);
@@ -274,13 +279,14 @@
                         ctx.translate(body.position.x, body.position.y);
                         ctx.rotate(body.angle);
                         if(img.complete && img.naturalWidth !== 0) ctx.drawImage(img, -w/2, -h/2, w, h);
-                        else { ctx.fillStyle='red'; ctx.fillRect(-w/2, -h/2, w, h); } // Fallback box if missing
+                        else { ctx.fillStyle='purple'; ctx.fillRect(-w/2, -h/2, w, h); } 
                         ctx.restore();
                     };
 
-                    draw(chassis, sprites.chassis, 120, 60);
-                    draw(w1, sprites.wheel, 50, 50);
-                    draw(w2, sprites.wheel, 50, 50);
+                    // Draw Car: Only Draw Chassis & Head. HIDE WHEELS visually.
+                    draw(chassis, sprites.chassis, 130, 70); 
+                    // draw(w1, sprites.wheel, 50, 50);  <-- HIDDEN (Invisible Physics)
+                    // draw(w2, sprites.wheel, 50, 50);  <-- HIDDEN (Invisible Physics)
                     draw(head, sprites.head, 30, 30);
                     
                     bodies.filter(b=>b.label==='coin').forEach(b => draw(b, sprites.coin, 40, 40));
