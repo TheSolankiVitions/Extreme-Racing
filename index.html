@@ -17,39 +17,75 @@
 
     <script>
         const ASSETS = [
+            // Vehicles
             'jeep.png', 'bike.png', 'wood.png', 'mini_monster.png', 'cartoon.png',
+            // Stages
             'country.png', 'moom.png', 'desert.png', 'glaciers.png', 'mars.png',
-            'driver_head.png', 'fuel_can.png', 'coin.png', 'wheel.png' // Assumed generic assets
+            // UI/Gameplay
+            'driver_head.png', 'wheel.png', 'fuel_can.png', 'coin.png'
         ];
 
-        function preloadImages() {
+        function preloadAssets(callback) {
             let loaded = 0;
             const total = ASSETS.length;
+            
+            // Create Splash Screen
             const splash = document.createElement('div');
-            splash.className = 'splash-screen';
-            splash.innerHTML = `<h1>EXTREME RACING</h1><p>Made by The Solanki Visions</p><div class="loader">0%</div>`;
+            splash.id = 'splash-screen';
+            splash.innerHTML = `
+                <div class="splash-content">
+                    <h1>EXTREME RACING</h1>
+                    <div class="brand">Made by The Solanki Visions</div>
+                    <div class="loader-bar"><div class="loader-fill" id="loader-fill"></div></div>
+                    <p id="loader-text">Initializing Physics Engine...</p>
+                </div>
+            `;
             document.body.appendChild(splash);
 
+            // Asset Loading Loop
             ASSETS.forEach(src => {
                 const img = new Image();
-                img.src = src; // Ensure these files exist in your root folder
+                img.src = src;
                 img.onload = () => {
                     loaded++;
-                    document.querySelector('.loader').innerText = Math.floor((loaded/total)*100) + '%';
+                    const pct = (loaded / total) * 100;
+                    document.getElementById('loader-fill').style.width = pct + '%';
+                    document.getElementById('loader-text').innerText = `Loading Assets... ${Math.floor(pct)}%`;
+                    
                     if (loaded === total) {
                         setTimeout(() => {
-                            splash.remove();
-                            // Signal React to mount (handled in App.js logic usually, but here we just verify)
+                            splash.style.opacity = '0';
+                            setTimeout(() => {
+                                splash.remove();
+                                callback();
+                            }, 500);
                         }, 500);
                     }
                 };
+                img.onerror = () => {
+                    console.error("Failed to load:", src);
+                    // Continue anyway to prevent soft-lock
+                    loaded++; 
+                    if(loaded === total) callback();
+                }
             });
         }
-        window.onload = preloadImages;
-    </script>
 
-    <script type="text/babel" src="GameEngine.js"></script>
-    <script type="text/babel" src="Garage.js"></script>
-    <script type="text/babel" src="App.js"></script>
+        // Boot React after assets are cached
+        preloadAssets(() => {
+            const script = document.createElement('script');
+            script.type = 'text/babel';
+            script.src = 'App.js'; // Points to the main React entry
+            document.body.appendChild(script);
+            
+            // Load other modules
+            ['Garage.js', 'GameEngine.js'].forEach(file => {
+                const s = document.createElement('script');
+                s.type = 'text/babel';
+                s.src = file;
+                document.body.appendChild(s);
+            });
+        });
+    </script>
 </body>
 </html>
