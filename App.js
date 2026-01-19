@@ -2,87 +2,90 @@ const { useState, useEffect, useRef } = React;
 
 function App() {
     const [view, setView] = useState('garage'); // garage, game, report
-    const [coins, setCoins] = useState(500); // Starting bonus
+    const [coins, setCoins] = useState(0);
+    
+    // Unlocks (Store IDs of owned items)
     const [ownedVehicles, setOwnedVehicles] = useState(['jeep.png']);
     const [ownedStages, setOwnedStages] = useState(['country.png']);
     
-    // Selection State
-    const [selectedVehicle, setSelectedVehicle] = useState('jeep.png');
-    const [selectedStage, setSelectedStage] = useState('country.png');
+    // Current Selection
+    const [vehicle, setVehicle] = useState('jeep.png');
+    const [stage, setStage] = useState('country.png');
     
-    // Last Run Stats
-    const [runStats, setRunStats] = useState(null);
+    // Post-Game Data
+    const [lastRun, setLastRun] = useState(null);
 
-    // Audio Refs
-    const audioMenu = useRef(new Audio('background-audio-non-playing.mp4'));
-    const audioGame = useRef(new Audio('background-audio-playing.mp4'));
+    // Audio Engine
+    const menuAudio = useRef(new Audio('background-audio-non-playing.mp4'));
+    const gameAudio = useRef(new Audio('background-audio-playing.mp4'));
 
     useEffect(() => {
-        audioMenu.current.loop = true;
-        audioGame.current.loop = true;
+        // Audio Logic
+        menuAudio.current.loop = true;
+        gameAudio.current.loop = true;
 
         if (view === 'garage' || view === 'report') {
-            audioGame.current.pause();
-            audioGame.current.currentTime = 0;
-            audioMenu.current.play().catch(e => console.log("Audio autoplay blocked"));
+            gameAudio.current.pause();
+            gameAudio.current.currentTime = 0;
+            menuAudio.current.play().catch(e => console.log("Interaction needed for audio"));
         } else if (view === 'game') {
-            audioMenu.current.pause();
-            audioGame.current.play();
+            menuAudio.current.pause();
+            menuAudio.current.currentTime = 0;
+            gameAudio.current.play();
         }
     }, [view]);
 
-    const handleStartGame = () => setView('game');
-    
-    const handleGameOver = (stats) => {
-        setRunStats(stats);
-        setCoins(prev => prev + stats.coins);
-        setView('report');
-    };
-
-    const handleBuy = (cost, item, type) => {
+    const handleBuy = (cost, id, type) => {
         if (coins >= cost) {
             setCoins(c => c - cost);
-            if (type === 'vehicle') setOwnedVehicles([...ownedVehicles, item]);
-            if (type === 'stage') setOwnedStages([...ownedStages, item]);
+            if (type === 'vehicle') setOwnedVehicles([...ownedVehicles, id]);
+            if (type === 'stage') setOwnedStages([...ownedStages, id]);
         }
+    };
+
+    const handleGameOver = (stats) => {
+        setLastRun(stats);
+        setCoins(c => c + stats.coins);
+        // Force audio stop
+        gameAudio.current.pause();
+        setView('report');
     };
 
     return (
         <React.Fragment>
             {view === 'garage' && (
                 <Garage 
-                    coins={coins} 
-                    onStart={handleStartGame}
+                    coins={coins}
                     ownedVehicles={ownedVehicles}
                     ownedStages={ownedStages}
-                    selectedVehicle={selectedVehicle}
-                    setSelectedVehicle={setSelectedVehicle}
-                    selectedStage={selectedStage}
-                    setSelectedStage={setSelectedStage}
+                    selectedVehicle={vehicle}
+                    setSelectedVehicle={setVehicle}
+                    selectedStage={stage}
+                    setSelectedStage={setStage}
                     onBuy={handleBuy}
+                    onStart={() => setView('game')}
                 />
             )}
             
             {view === 'game' && (
                 <GameEngine 
-                    vehicle={selectedVehicle} 
-                    stage={selectedStage} 
+                    vehicleAsset={vehicle} 
+                    stageAsset={stage} 
                     onGameOver={handleGameOver}
                 />
             )}
 
-            {view === 'report' && runStats && (
+            {view === 'report' && lastRun && (
                 <div className="glass-panel report-modal">
-                    <h2>MISSION REPORT</h2>
-                    <img src={runStats.snapshot} style={{width: '100%', borderRadius: '8px', border: '2px solid white'}} />
-                    <div style={{textAlign:'left', margin: '20px 0'}}>
-                        <p>🪙 Coins Earned: {runStats.coins}</p>
-                        <p>📏 Distance: {Math.floor(runStats.distance)} m</p>
-                        <p>🤸 Backflips: {runStats.backflips}</p>
-                        <p>🤸 Frontflips: {runStats.frontflips}</p>
-                    </div>
-                    <button className="btn" onClick={() => setView('garage')}>Return to Garage</button>
-                    <div className="footer-brand">Made by The Solanki Visions</div>
+                    <h2>RUN COMPLETE</h2>
+                    <img src={lastRun.snapshot} className="snapshot" />
+                    <div className="stat-row"><span>Coins</span> <span>+{lastRun.coins}</span></div>
+                    <div className="stat-row"><span>Distance</span> <span>{Math.floor(lastRun.distance)}m</span></div>
+                    <div className="stat-row"><span>Air Time</span> <span>{lastRun.airTime.toFixed(1)}s</span></div>
+                    <div className="stat-row"><span>Flips</span> <span>{lastRun.flips}</span></div>
+                    <br/>
+                    <button className="btn btn-select" onClick={() => setView('garage')}>Back to Garage</button>
+                    <div style={{marginTop: 20, fontSize: '0.7rem', color: '#888'}}>Made by The Solanki Visions</div>
                 </div>
             )}
         </React.Fragment>
