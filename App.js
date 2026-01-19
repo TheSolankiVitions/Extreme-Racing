@@ -1,126 +1,90 @@
 const { useState, useEffect, useRef } = React;
 
-// --- Audio Manager ---
-const AudioManager = {
-    menu: new Audio('background-audio-non-playing.mp3'),
-    game: new Audio('background-audio-playing.mp3'),
-    playMenu: function() {
-        this.game.pause();
-        this.game.currentTime = 0;
-        this.menu.loop = true;
-        this.menu.play().catch(e => console.log("Audio not found - silent mode"));
-    },
-    playGame: function() {
-        this.menu.pause();
-        this.menu.currentTime = 0;
-        this.game.loop = true;
-        this.game.play().catch(e => console.log("Audio not found - silent mode"));
-    }
+// Audio Factory
+const AudioSys = {
+    menu: new Audio('blackground-audio-non-playing.mp4'), // Will fail gracefully if file missing
+    game: new Audio('background-audio-playing.mp4'),
+    playMenu: function() { this.game.pause(); this.menu.loop=true; this.menu.play().catch(()=>{}); },
+    playGame: function() { this.menu.pause(); this.game.loop=true; this.game.play().catch(()=>{}); },
+    stop: function() { this.game.pause(); this.menu.pause(); }
 };
 
 const App = () => {
-    // 1. Persistence
+    // 1. Loader State
+    const [loading, setLoading] = useState(true);
+    const [view, setView] = useState('garage'); // garage, game, result
+    
+    // 2. Data Persistence
     const loadData = () => {
-        try {
-            const d = JSON.parse(localStorage.getItem('extremeRacingSolanki'));
-            if(d) return d;
-        } catch(e) {}
-        return {
-            coins: 5000,
-            vehicle: 0,
-            stage: 'Countryside',
-            unlockedVehicles: [0],
-            unlockedStages: ['Countryside'],
-            upgrades: { engine: 1, suspension: 1, tires: 1, balance: 1 }
-        };
+        try { return JSON.parse(localStorage.getItem('solanki_extreme_v3')) || defaultData; } 
+        catch { return defaultData; }
     };
-
+    const defaultData = { coins: 2000, lifetime: 0, unlockedCars: [0], unlockedStages: ['Countryside'], currentCar: 0, currentStage: 'Countryside' };
+    
     const [data, setData] = useState(loadData);
-    const [view, setView] = useState('garage');
-    const [sessionCoins, setSessionCoins] = useState(0);
-    const [feedback, setFeedback] = useState([]);
+    const [session, setSession] = useState({ coins: 0, fuel: 100, feedbacks: [] });
+    const [report, setReport] = useState(null);
     const canvasRef = useRef(null);
     const engineRef = useRef(null);
 
-    // Save on change
-    useEffect(() => {
-        localStorage.setItem('extremeRacingSolanki', JSON.stringify(data));
-    }, [data]);
+    // Save Logic
+    useEffect(() => localStorage.setItem('solanki_extreme_v3', JSON.stringify(data)), [data]);
 
-    // Audio Init
+    // Preloader Simulation
     useEffect(() => {
-        if(view === 'garage') AudioManager.playMenu();
-        else AudioManager.playGame();
-    }, [view]);
+        setTimeout(() => setLoading(false), 1500); // Fake asset load
+        AudioSys.playMenu();
+    }, []);
 
-    // --- Actions ---
+    // Game Actions
     const actions = {
-        buyVehicle: (id, cost) => setData(p => ({...p, coins: p.coins - cost, unlockedVehicles: [...p.unlockedVehicles, id]})),
-        selectVehicle: (id) => setData(p => ({...p, vehicle: id})),
-        buyStage: (id, cost) => setData(p => ({...p, coins: p.coins - cost, unlockedStages: [...p.unlockedStages, id]})),
-        selectStage: (id) => setData(p => ({...p, stage: id})),
-        upgrade: (key, cost) => setData(p => ({...p, coins: p.coins - cost, upgrades: {...p.upgrades, [key]: p.upgrades[key]+1}})),
-        startGame: () => setView('game')
+        buyCar: (id, p) => setData(d => ({...d, coins: d.coins-p, unlockedCars: [...d.unlockedCars, id]})),
+        setCar: (id) => setData(d => ({...d, currentCar: id})),
+        buyStage: (id, p) => setData(d => ({...d, coins: d.coins-p, unlockedStages: [...d.unlockedStages, id]})),
+        setStage: (id) => setData(d => ({...d, currentStage: id})),
+        start: () => { setView('game'); AudioSys.playGame(); }
     };
 
-    // --- Game Logic Handling ---
-    const startGameLogic = () => {
-        if(!canvasRef.current) return;
-        setSessionCoins(0);
-        setFeedback([]);
-        
-        engineRef.current = new window.GameEngine(
-            canvasRef.current,
-            { vehicle: data.vehicle, stage: data.stage, upgrades: data.upgrades },
-            {
-                onCoin: (val) => setSessionCoins(p => p + val),
-                onEnd: () => {
-                    // Slight delay to show crash
-                    setTimeout(() => {
-                        setData(d => ({...d, coins: d.coins + engineRef.current.coins.reduce((a,c)=>c.collected?a+c.val:a,0) })); // Safe sync
-                        setView('garage');
-                    }, 1500);
-                },
-                onFeedback: (text, x, y, col) => {
-                    const id = Date.now();
-                    setFeedback(p => [...p, { id, text, col }]);
-                    setTimeout(() => setFeedback(p => p.filter(f => f.id !== id)), 1200);
-                }
-            }
-        );
-    };
-
-    // Mount Game Engine when view changes
+    // Engine Mounting
     useEffect(() => {
         if(view === 'game') {
-            // Short delay to ensure Canvas DOM is ready
-            setTimeout(startGameLogic, 50);
-        } else {
-            if(engineRef.current) engineRef.current.running = false;
+            setSession({ coins: 0, fuel: 100, feedbacks: [] });
+            setTimeout(() => {
+                if(canvasRef.current) {
+                    engineRef.current = new window.GameEngine(
+                        canvasRef.current,
+                        { vehicle: data.currentCar, stage: data.currentStage },
+                        {
+                            onFuel: (f) => setSession(s => ({...s, fuel: f})),
+                            onCoin: (v) => setSession(s => ({...s, coins: s.coins + v})),
+                            onFeedback: (t, x, y) => {
+                                const id = Date.now();
+                                setSession(s => ({...s, feedbacks: [...s.feedbacks, {id, t, x, y}]}));
+                                setTimeout(() => setSession(s => ({...s, feedbacks: s.feedbacks.filter(f=>f.id!==id)})), 1000);
+                            },
+                            onEnd: (result) => {
+                                AudioSys.stop();
+                                setReport({...result, coins: engineRef.current.coins.filter(c=>c.collected).reduce((a,b)=>a+b.val,0)});
+                                setData(d => ({...d, coins: d.coins + session.coins, lifetime: d.lifetime + session.coins})); // Sync
+                                setView('result');
+                            }
+                        }
+                    );
+                }
+            }, 50);
         }
     }, [view]);
 
-    // Input Bindings
-    const handleInput = (k, v) => {
-        if(engineRef.current) engineRef.current.setInput(k, v);
-    };
-
-    // Keyboard
+    // Input
+    const handleInput = (k, v) => engineRef.current && engineRef.current.setInput(k, v);
     useEffect(() => {
-        const kd = (e) => {
-            if(view!=='game') return;
-            if(e.code === 'ArrowRight' || e.code === 'KeyD') handleInput('gas', true);
-            if(e.code === 'ArrowLeft' || e.code === 'KeyA') handleInput('brake', true);
-        };
-        const ku = (e) => {
-            if(view!=='game') return;
-            if(e.code === 'ArrowRight' || e.code === 'KeyD') handleInput('gas', false);
-            if(e.code === 'ArrowLeft' || e.code === 'KeyA') handleInput('brake', false);
-        };
-        window.addEventListener('keydown', kd);
-        window.addEventListener('keyup', ku);
-        return () => { window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); }
+        const kDown = (e) => { if(view==='game') { if(e.key==='ArrowRight') handleInput('gas', true); if(e.key==='ArrowLeft') handleInput('brake', true); }};
+        const kUp = (e) => { if(view==='game') { if(e.key==='ArrowRight') handleInput('gas', false); if(e.key==='ArrowLeft') handleInput('brake', false); }};
+        window.addEventListener('keydown', kDown); window.addEventListener('keyup', kUp);
+        return () => { window.removeEventListener('keydown', kDown); window.removeEventListener('keyup', kUp); };
     }, [view]);
+
+    if(loading) return <div className="loader-screen"><h1>THE SOLANKI VISIONS</h1><div className="loader-bar"><div className="loader-fill" style={{width:'100%'}}></div></div></div>;
 
     if(view === 'garage') return <window.Garage data={data} actions={actions} />;
 
@@ -128,33 +92,40 @@ const App = () => {
         <div style={{width:'100%', height:'100%'}}>
             <canvas ref={canvasRef} id="game-canvas"></canvas>
             
-            <div className="ui-layer">
-                <div className="hud-top">
-                    <div className="coin-box">COINS: {data.coins + sessionCoins}</div>
-                    <div className="stage-box">{data.stage.toUpperCase()}</div>
-                </div>
-
-                {/* Floating Text */}
-                {feedback.map(f => (
-                    <div key={f.id} className="feedback" style={{left:'50%', top:'40%', color:f.col, transform:'translate(-50%)'}}>
-                        {f.text}
+            {view === 'game' && (
+                <div className="hud-layer">
+                    <div className="top-bar">
+                        <div>{data.currentStage}</div>
+                        <div style={{color:'gold'}}>+{session.coins}</div>
                     </div>
-                ))}
+                    <div className="fuel-container"><div className="fuel-bar" style={{width: `${session.fuel}%`}}></div></div>
+                    <div className="fuel-label">FUEL</div>
+                    
+                    {session.feedbacks.map(f => (
+                        <div key={f.id} className="feedback-text" style={{left: f.x, top: f.y}}>{f.t}</div>
+                    ))}
 
-                <div className="controls">
-                    <div className="pedal brake" 
-                        onPointerDown={(e)=>{e.preventDefault(); handleInput('brake', true)}} 
-                        onPointerUp={(e)=>{e.preventDefault(); handleInput('brake', false)}}
-                    >BRAKE</div>
-                    <div className="pedal gas" 
-                        onPointerDown={(e)=>{e.preventDefault(); handleInput('gas', true)}} 
-                        onPointerUp={(e)=>{e.preventDefault(); handleInput('gas', false)}}
-                    >GAS</div>
+                    <div className="controls">
+                        <div className="pedal brake" onPointerDown={()=>handleInput('brake',true)} onPointerUp={()=>handleInput('brake',false)}>BRAKE</div>
+                        <div className="pedal gas" onPointerDown={()=>handleInput('gas',true)} onPointerUp={()=>handleInput('gas',false)}>GAS</div>
+                    </div>
                 </div>
-            </div>
+            )}
+
+            {view === 'result' && report && (
+                <div className="report-modal">
+                    <div className="report-card">
+                        <h2 style={{color:'red'}}>{report.reason}</h2>
+                        <img src={report.photo} className="crash-photo" />
+                        <div className="stat-row"><span>Coins Earned:</span> <span style={{color:'gold'}}>{session.coins}</span></div>
+                        <div className="stat-row"><span>Distance:</span> <span>{report.stats.dist}m</span></div>
+                        <div className="stat-row"><span>Air Time:</span> <span>{report.stats.air.toFixed(1)}s</span></div>
+                        <button className="btn btn-selected" onClick={()=>{setView('garage'); AudioSys.playMenu();}}>RETURN TO GARAGE</button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
-
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<App />);
