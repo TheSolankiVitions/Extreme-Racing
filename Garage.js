@@ -1,65 +1,72 @@
-const Garage = ({ data, actions }) => {
-    // Configs
-    const cars = [
-        { id: 0, name: "Hill Jeep", price: 0, color: '#2ecc71', type: 'Balanced' },
-        { id: 1, name: "Monster", price: 5000, color: '#e74c3c', type: 'Power' }
-    ];
+function Garage({ coins, onStart, ownedVehicles, ownedStages, selectedVehicle, setSelectedVehicle, selectedStage, setSelectedStage, onBuy }) {
     
+    const vehicles = [
+        { name: 'Jeep', img: 'jeep.png', price: 0 },
+        { name: 'Bike', img: 'bike.png', price: 1000 },
+        { name: 'Wood', img: 'wood.png', price: 2000 },
+        { name: 'Mini Monster', img: 'mini_monster.png', price: 3000 },
+        { name: 'Cartoon', img: 'cartoon.png', price: 4000 },
+    ];
+
+    const stages = [
+        { name: 'Country', img: 'country.png', price: 0 },
+        { name: 'Moon', img: 'moom.png', price: 1000 },
+        { name: 'Desert', img: 'desert.png', price: 2000 },
+        { name: 'Glaciers', img: 'glaciers.png', price: 3000 },
+        { name: 'Mars', img: 'mars.png', price: 4000 },
+    ];
+
+    const [tab, setTab] = useState('vehicles'); // vehicles | stages
+
     return (
-        <div className="menu">
-            <h1 className="title">EXTREME RACING</h1>
-            <div className="subtitle">MADE BY THE SOLANKI VISIONS</div>
-            
-            <div style={{fontSize:'24px', color:'gold', marginBottom:'10px'}}>
-                COINS: {data.coins}
+        <div className="garage-container">
+            <div className="garage-header">
+                <div className="glass-panel" style={{padding: '10px 20px'}}>
+                    💰 {coins}
+                </div>
+                <div>
+                    <button className="btn" onClick={() => setTab('vehicles')} style={{marginRight: 10, opacity: tab==='vehicles'?1:0.5}}>Vehicles</button>
+                    <button className="btn" onClick={() => setTab('stages')} style={{opacity: tab==='stages'?1:0.5}}>Stages</button>
+                </div>
             </div>
 
-            <div className="grid">
-                {cars.map(c => {
-                    const owned = data.unlockedCars.includes(c.id);
-                    const selected = data.currentCar === c.id;
+            <div className="garage-grid">
+                {tab === 'vehicles' ? vehicles.map(v => {
+                    const isOwned = ownedVehicles.includes(v.img);
                     return (
-                        <div key={c.id} className="card" style={{borderColor: selected?'gold':'#555'}}>
-                            <div className="card-preview" style={{background: '#333'}}>
-                                {/* CSS Representation of Car */}
-                                <div style={{
-                                    width:'80px', height:'30px', background: c.color,
-                                    borderRadius:'5px', position:'relative',
-                                    border: '2px solid #111'
-                                }}>
-                                    <div style={{
-                                        position:'absolute', top:'10px', left:'-10px',
-                                        width:'20px', height:'20px', background:'#222', borderRadius:'50%'
-                                    }}></div>
-                                    <div style={{
-                                        position:'absolute', top:'10px', left:'70px',
-                                        width:'20px', height:'20px', background:'#222', borderRadius:'50%'
-                                    }}></div>
-                                    <div style={{
-                                        position:'absolute', top:'-15px', left:'20px',
-                                        width:'30px', height:'15px', background:'#444', borderRadius:'5px 5px 0 0'
-                                    }}></div>
-                                </div>
-                            </div>
-                            <h2 style={{color:'white', margin:'0'}}>{c.name}</h2>
-                            <p style={{color:'#aaa'}}>{c.type}</p>
-                            
-                            {owned ? 
-                                <button className={`btn ${selected?'btn-active':'btn-sel'}`} onClick={()=>actions.setCar(c.id)}>
-                                    {selected ? 'READY' : 'SELECT'}
+                        <div key={v.img} className={`glass-panel card ${selectedVehicle === v.img ? 'selected' : ''}`}
+                             onClick={() => isOwned && setSelectedVehicle(v.img)}>
+                            <img src={v.img} alt={v.name} />
+                            <h3>{v.name}</h3>
+                            {!isOwned ? (
+                                <button className="btn" disabled={coins < v.price} onClick={(e) => { e.stopPropagation(); onBuy(v.price, v.img, 'vehicle'); }}>
+                                    Buy {v.price}
                                 </button>
-                                :
-                                <button className="btn btn-buy" disabled={data.coins<c.price} onClick={()=>actions.buyCar(c.id, c.price)}>
-                                    BUY ${c.price}
+                            ) : <span>OWNED</span>}
+                        </div>
+                    )
+                }) : stages.map(s => {
+                    const isOwned = ownedStages.includes(s.img);
+                    return (
+                        <div key={s.img} className={`glass-panel card ${selectedStage === s.img ? 'selected' : ''}`}
+                             onClick={() => isOwned && setSelectedStage(s.img)}>
+                            <img src={s.img} alt={s.name} />
+                            <h3>{s.name}</h3>
+                            {!isOwned ? (
+                                <button className="btn" disabled={coins < s.price} onClick={(e) => { e.stopPropagation(); onBuy(s.price, s.img, 'stage'); }}>
+                                    Buy {s.price}
                                 </button>
-                            }
+                            ) : <span>OWNED</span>}
                         </div>
                     )
                 })}
             </div>
 
-            <button className="start-btn" onClick={actions.start}>START ENGINE</button>
+            <div style={{textAlign: 'center', marginTop: '20px'}}>
+                <button className="btn" style={{fontSize: '2rem', padding: '15px 50px'}} onClick={onStart}>RACE</button>
+            </div>
+
+            <div className="footer-brand">Made by The Solanki Visions</div>
         </div>
     );
-};
-window.Garage = Garage;
+}
