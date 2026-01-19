@@ -1,69 +1,61 @@
 const { useState, useEffect, useRef } = React;
 
-// --- AUDIO MANAGER ---
+// --- AUDIO SYSTEM (SAFE) ---
 const AudioSys = {
-    // Files exactly as requested
-    menu: new Audio('blackground-audio-non-playing.mp4'),
-    game: new Audio('backgroung-audio-playing.mp4'),
-    // Coin SFX (using a placeholder generic beep if file not provided, or logic for it)
-    // Since user didn't give coin filename, we'll create a simple Oscillator beep for now
-    // OR try to load 'coin.mp3' if they add it later.
-    playCoin: function() {
-        // Simple synthetic beep to ensure sound works immediately without extra file
-        try {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.frequency.value = 800; // High beep like hill climb
-            gain.gain.value = 0.1;
-            osc.start();
-            osc.stop(ctx.currentTime + 0.1);
-        } catch(e) {}
-    },
+    bgm: null,
     
-    // States
-    enterMenu: function() {
-        this.game.pause();
-        this.game.currentTime = 0;
-        this.menu.loop = true;
-        this.menu.play().catch(e => console.log("Click to enable audio"));
+    playGameMusic: function() {
+        if(this.bgm) this.bgm.pause();
+        // Uses the file you requested. If missing, it simply logs a warning instead of crashing.
+        this.bgm = new Audio('backgroung-audio-playing.mp4'); 
+        this.bgm.loop = true;
+        this.bgm.volume = 0.6;
+        this.bgm.play().catch(e => console.warn("Audio file missing or blocked:", e));
     },
-    enterGame: function() {
-        this.menu.pause();
-        this.menu.currentTime = 0;
-        this.game.loop = true;
-        this.game.play().catch(e => console.log("Game Audio Blocked"));
+
+    stopMusic: function() {
+        if(this.bgm) {
+            this.bgm.pause();
+            this.bgm.currentTime = 0;
+        }
     },
-    stopAll: function() {
-        this.menu.pause();
-        this.game.pause();
+
+    playMenuMusic: function() {
+        if(this.bgm) this.bgm.pause();
+        this.bgm = new Audio('blackground-audio-non-playing.mp4');
+        this.bgm.loop = true;
+        this.bgm.volume = 0.5;
+        this.bgm.play().catch(e => console.warn("Audio file missing or blocked:", e));
     }
 };
 
 const App = () => {
     const [view, setView] = useState('garage');
-    const [data, setData] = useState({ coins: 0 });
+    const [data, setData] = useState({ coins: 500, unlockedCars: [0], currentCar: 0 });
     const [session, setSession] = useState({ coins: 0, fuel: 100 });
     const [report, setReport] = useState(null);
     const canvasRef = useRef(null);
     const engineRef = useRef(null);
 
-    // Initial Audio Trigger
+    // Initial Menu Music (Must be triggered by user usually, but we try on load)
     useEffect(() => {
-        // Try to play menu audio on mount
-        AudioSys.enterMenu();
+        const clickToStart = () => {
+             AudioSys.playMenuMusic();
+             window.removeEventListener('click', clickToStart);
+        };
+        window.addEventListener('click', clickToStart);
     }, []);
 
     const actions = {
+        buyCar: (id, p) => setData(d => ({...d, coins: d.coins-p, unlockedCars: [...d.unlockedCars, id]})),
+        setCar: (id) => setData(d => ({...d, currentCar: id})),
         start: () => {
             setView('game');
-            AudioSys.enterGame(); // Switch audio immediately
+            AudioSys.playGameMusic();
         }
     };
 
-    // Mount Game Engine
+    // Mount Game
     useEffect(() => {
         if(view === 'game') {
             setSession({ coins: 0, fuel: 100 });
@@ -71,15 +63,12 @@ const App = () => {
                 if(canvasRef.current) {
                     engineRef.current = new window.GameEngine(
                         canvasRef.current,
-                        { vehicle: 0, stage: 'Countryside' },
+                        { vehicle: data.currentCar, stage: 'Countryside' },
                         {
-                            onFuel: (f) => setSession(s => ({...s, fuel:f})),
-                            onCoin: (v) => {
-                                setSession(s => ({...s, coins: s.coins + v}));
-                                AudioSys.playCoin(); // Trigger SFX
-                            },
+                            onFuel: (f) => setSession(s => ({...s, fuel: f})),
+                            onCoin: (v) => setSession(s => ({...s, coins: s.coins + v})),
                             onEnd: (res) => {
-                                AudioSys.stopAll(); // Silence on crash
+                                AudioSys.stopMusic();
                                 setReport(res);
                                 setData(d => ({...d, coins: d.coins + session.coins}));
                                 setView('report');
@@ -91,18 +80,18 @@ const App = () => {
         }
     }, [view]);
 
-    // Inputs
+    // Input Handling
     const handleInput = (k, v) => engineRef.current && engineRef.current.setInput(k, v);
     useEffect(() => {
         const kd = (e) => {
             if(view!=='game') return;
-            if(e.key === 'ArrowRight' || e.key === 'd') handleInput('gas', true);
-            if(e.key === 'ArrowLeft' || e.key === 'a') handleInput('brake', true);
+            if(e.key==='ArrowRight' || e.key==='d') handleInput('gas', true);
+            if(e.key==='ArrowLeft' || e.key==='a') handleInput('brake', true);
         };
         const ku = (e) => {
             if(view!=='game') return;
-            if(e.key === 'ArrowRight' || e.key === 'd') handleInput('gas', false);
-            if(e.key === 'ArrowLeft' || e.key === 'a') handleInput('brake', false);
+            if(e.key==='ArrowRight' || e.key==='d') handleInput('gas', false);
+            if(e.key==='ArrowLeft' || e.key==='a') handleInput('brake', false);
         };
         window.addEventListener('keydown', kd);
         window.addEventListener('keyup', ku);
@@ -111,42 +100,61 @@ const App = () => {
 
     return (
         <div style={{width:'100%', height:'100%'}}>
-            {/* Garage View */}
             {view === 'garage' && <window.Garage data={data} actions={actions} />}
 
-            {/* Game View */}
             {view === 'game' && (
                 <div style={{width:'100%', height:'100%'}}>
                     <canvas ref={canvasRef} id="game-canvas"></canvas>
-                    <div className="hud-layer">
+                    <div className="hud">
                         <div className="top-bar">
-                            <div>{Math.floor(data.coins + session.coins)}</div>
-                            <div>{Math.floor((engineRef.current?.distance || 0))}m</div>
+                            <div className="coin-count">COINS: {data.coins + session.coins}</div>
+                            <div>{engineRef.current ? engineRef.current.distance : 0}m</div>
                         </div>
-                        <div className="fuel-wrap"><div className="fuel-fill" style={{width:`${session.fuel}%`}}></div></div>
-                        <div className="fuel-text">FUEL</div>
+                        
+                        <div className="fuel-box">
+                            <div className="fuel-bar" style={{width:`${session.fuel}%`}}></div>
+                        </div>
+                        <div className="fuel-txt">FUEL</div>
+
                         <div className="controls">
-                            <div className="pedal brake" onPointerDown={()=>handleInput('brake', true)} onPointerUp={()=>handleInput('brake', false)}>BRAKE</div>
-                            <div className="pedal gas" onPointerDown={()=>handleInput('gas', true)} onPointerUp={()=>handleInput('gas', false)}>GAS</div>
+                            <div className="pedal brake" 
+                                onMouseDown={()=>handleInput('brake', true)} onMouseUp={()=>handleInput('brake', false)}
+                                onTouchStart={(e)=>{e.preventDefault(); handleInput('brake', true)}} onTouchEnd={(e)=>{e.preventDefault(); handleInput('brake', false)}}
+                            >
+                                <span>🛑</span>BRAKE
+                            </div>
+                            <div className="pedal gas"
+                                onMouseDown={()=>handleInput('gas', true)} onMouseUp={()=>handleInput('gas', false)}
+                                onTouchStart={(e)=>{e.preventDefault(); handleInput('gas', true)}} onTouchEnd={(e)=>{e.preventDefault(); handleInput('gas', false)}}
+                            >
+                                <span>🚀</span>GAS
+                            </div>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Report View */}
             {view === 'report' && report && (
-                <div className="modal">
-                    <div className="report">
-                        <h2 style={{color:'red'}}>{report.reason}</h2>
-                        <img src={report.photo} className="crash-img" />
-                        <h3>Earned: {session.coins}</h3>
-                        <h3>Distance: {report.stats.dist}m</h3>
-                        <button className="btn btn-go" onClick={()=>{setView('garage'); AudioSys.enterMenu();}}>RETURN TO GARAGE</button>
+                <div style={{
+                    position:'absolute', top:0, left:0, width:'100%', height:'100%',
+                    background:'rgba(0,0,0,0.9)', display:'flex', alignItems:'center', justifyContent:'center'
+                }}>
+                    <div style={{
+                        background:'#222', padding:'30px', borderRadius:'15px', border:'2px solid gold',
+                        textAlign:'center', color:'white', width:'90%', maxWidth:'400px'
+                    }}>
+                        <h1 style={{color:'red', fontSize:'40px', margin:'0'}}>{report.reason}</h1>
+                        <h3 style={{color:'#aaa'}}>RUN DISTANCE: {report.stats.dist}m</h3>
+                        <h2 style={{color:'gold', fontSize:'30px'}}>EARNED: +{session.coins}</h2>
+                        <button className="start-btn" style={{fontSize:'20px', padding:'15px'}} onClick={()=>{ setView('garage'); AudioSys.playMenuMusic(); }}>
+                            RETURN TO GARAGE
+                        </button>
                     </div>
                 </div>
             )}
         </div>
     );
 };
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<App />);
