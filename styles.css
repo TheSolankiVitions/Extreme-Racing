@@ -1,38 +1,111 @@
-:root { --gold: #ffd700; --dark: #111; }
-body { margin: 0; background: #000; overflow: hidden; font-family: 'Segoe UI', monospace; user-select: none; }
-#game-canvas { width: 100%; height: 100%; display: block; background: #222; }
+body {
+    margin: 0;
+    overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #121212;
+    color: white;
+    user-select: none;
+}
 
-/* HUD */
-.hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-.top-bar { display: flex; justify-content: space-between; padding: 20px; font-weight: 900; font-size: 28px; color: white; text-shadow: 2px 2px 0 #000; }
-.coin-txt { color: var(--gold); }
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
 
-.fuel-wrap { position: absolute; top: 70px; left: 20px; width: 220px; height: 35px; border: 3px solid #fff; border-radius: 8px; background: rgba(0,0,0,0.7); overflow: hidden; }
-.fuel-fill { height: 100%; background: linear-gradient(90deg, #f00, #ff0, #0f0); width: 100%; transition: width 0.1s linear; }
-.fuel-lbl { position: absolute; top: 76px; left: 250px; font-weight: bold; color: white; font-size: 20px; text-shadow: 1px 1px 0 #000; }
+/* Glassmorphism Classes */
+.glass-panel {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+}
 
-/* Realistic Pedals */
-.controls { position: absolute; bottom: 20px; width: 100%; padding: 0 40px; display: flex; justify-content: space-between; pointer-events: auto; }
-.pedal { width: 130px; height: 130px; border-radius: 20px; border: 4px solid #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 900; font-size: 22px; color: white; cursor: pointer; box-shadow: 0 10px 25px rgba(0,0,0,0.6); transition: transform 0.05s; }
-.pedal:active { transform: scale(0.95); box-shadow: 0 5px 10px rgba(0,0,0,0.6); }
-.gas { background: linear-gradient(#2ecc71, #27ae60); }
-.brake { background: linear-gradient(#e74c3c, #c0392b); }
-.pedal span { font-size: 40px; }
+.splash-screen {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
 
-/* Garage */
-.menu { width: 100%; height: 100%; background: linear-gradient(135deg, #1e1e24, #000); color: white; padding: 20px; text-align: center; overflow-y: auto; }
-.header { font-size: 60px; font-weight: 900; color: var(--gold); text-shadow: 0 0 20px var(--gold); font-style: italic; margin-bottom: 0; }
-.sub-header { color: #888; letter-spacing: 3px; margin-bottom: 40px; }
+/* Garage Layout */
+.garage-container {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    padding: 20px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
 
-.garage-grid { display: flex; gap: 30px; justify-content: center; flex-wrap: wrap; padding-bottom: 50px; }
-.card { background: rgba(255,255,255,0.05); border: 2px solid #444; border-radius: 15px; padding: 20px; width: 300px; text-align: left; transition: 0.3s; }
-.card:hover { border-color: var(--gold); transform: translateY(-5px); }
-.card-vis { width: 100%; height: 160px; background: #222; border-radius: 10px; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; }
+.garage-header {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px;
+}
 
-.btn { width: 100%; padding: 18px; font-size: 20px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; text-transform: uppercase; margin-top: 15px; }
-.btn-buy { background: var(--gold); color: black; }
-.btn-use { background: #444; color: white; }
-.btn-ready { background: #2ecc71; color: white; }
+.garage-grid {
+    display: flex;
+    gap: 20px;
+    overflow-x: auto;
+    padding: 20px;
+    height: 60%;
+    align-items: center;
+}
 
-.start-btn { display: block; margin: 20px auto; padding: 25px 60px; font-size: 30px; font-weight: 900; background: var(--gold); border: none; border-radius: 50px; cursor: pointer; box-shadow: 0 0 40px rgba(255, 215, 0, 0.4); animation: pulse 1.5s infinite; }
-@keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+.card {
+    min-width: 250px;
+    padding: 15px;
+    text-align: center;
+    transition: transform 0.2s;
+    cursor: pointer;
+}
+.card:hover { transform: scale(1.05); border-color: #ffd700; }
+.card.selected { border: 2px solid #00ff00; background: rgba(0, 255, 0, 0.1); }
+.card img { width: 100%; height: auto; object-fit: contain; }
+
+.btn {
+    padding: 10px 30px;
+    font-size: 1.2rem;
+    background: linear-gradient(45deg, #ff4b1f, #ff9068);
+    border: none;
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* HUD & Report */
+.hud {
+    position: absolute;
+    top: 20px; left: 20px; right: 20px;
+    display: flex;
+    justify-content: space-between;
+    pointer-events: none;
+}
+
+.report-modal {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80%;
+    max-width: 500px;
+    padding: 30px;
+    text-align: center;
+    z-index: 100;
+}
+
+.footer-brand {
+    margin-top: auto;
+    text-align: center;
+    opacity: 0.7;
+    font-size: 0.8rem;
+    padding-bottom: 10px;
+}
