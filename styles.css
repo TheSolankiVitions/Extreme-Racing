@@ -15,7 +15,7 @@
     padding: 0;
     user-select: none;
     -webkit-user-select: none;
-    touch-action: none; /* Prevents scroll on mobile */
+    touch-action: none;
 }
 
 body {
@@ -148,7 +148,7 @@ canvas {
 }
 
 /* =========================================
-   5. GARAGE SCREEN (Visual Heavy)
+   5. GARAGE SCREEN
    ========================================= */
 #garage-screen {
     background: rgba(0,0,0,0.9);
@@ -184,7 +184,6 @@ canvas {
     padding-bottom: 10px;
 }
 
-/* Custom cards for vehicles/stages */
 .card {
     min-width: 160px;
     height: 180px;
@@ -246,11 +245,11 @@ canvas {
 }
 
 /* =========================================
-   6. HUD (In-Game)
+   6. HUD & CONTROLS
    ========================================= */
 #hud-screen {
     justify-content: space-between;
-    pointer-events: none; /* Let clicks pass to controls */
+    pointer-events: none;
 }
 
 .top-bar {
