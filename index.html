@@ -3,152 +3,140 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="description" content="Extreme Racing - Smooth Physics Edition by The Solanki Visions">
+    <meta name="description" content="Extreme Racing - Physics Fixed Edition">
     <title>Extreme Racing | The Solanki Visions</title>
     
     <link rel="stylesheet" href="styles.css">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@900&family=Segoe+UI:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
     <div id="loading-screen">
-        <div class="loader-content">
-            <h1>EXTREME RACING</h1>
-            <div class="loading-status">
-                <div class="spinner"></div>
-                <p id="loader-text">Loading Assets...</p>
+        <div class="loader-box">
+            <h1 class="neon-text">EXTREME RACING</h1>
+            <div class="loader-track">
+                <div class="loader-bar" id="loader-fill"></div>
             </div>
-            <div class="progress-bar-container">
-                <div class="progress-bar-fill" id="loader-fill"></div>
-            </div>
-            <p class="brand-text">Made by The Solanki Visions</p>
+            <p id="loader-status">CONNECTING TO ENGINE...</p>
+            <p class="credits">Made by The Solanki Visions</p>
         </div>
     </div>
 
     <div id="menu-screen" class="hidden">
-        <div class="logo-container">
-            <h1 class="game-title glitch-effect" data-text="EXTREME RACING">EXTREME<br>RACING</h1>
-            <p class="studio-tag">Made by The Solanki Visions</p>
-        </div>
-        
-        <div class="menu-actions">
-            <button id="btn-garage" class="menu-btn">GARAGE</button>
-            <button id="btn-start" class="menu-btn primary-btn pulse-anim">START ENGINE</button>
-        </div>
-        
-        <div class="total-coins-display">
-            <span class="coin-icon">🪙</span>
-            <span id="menu-total-coins">0</span>
+        <div class="menu-content">
+            <h1 class="game-logo glitch" data-text="EXTREME RACING">EXTREME<br>RACING</h1>
+            <p class="studio-sub">Made by The Solanki Visions</p>
+            
+            <div class="menu-grid">
+                <button id="btn-start" class="big-btn start-btn">
+                    <span class="btn-icon">▶</span> START RACE
+                </button>
+                <button id="btn-garage" class="big-btn garage-btn">
+                    <span class="btn-icon">⚙</span> GARAGE
+                </button>
+            </div>
+
+            <div class="wallet-display">
+                <span class="coin-img">🪙</span>
+                <span id="menu-total-coins">0</span>
+            </div>
         </div>
     </div>
 
     <div id="garage-screen" class="hidden">
-        <div class="garage-top-bar">
-            <button id="btn-back-menu" class="nav-btn">← BACK</button>
-            <h2>GARAGE</h2>
-            <div class="coin-wallet">
+        <div class="garage-nav">
+            <button id="btn-back-menu" class="nav-arrow">❮ BACK</button>
+            <div class="garage-title">GARAGE</div>
+            <div class="wallet-display small">
                 <span>🪙</span> <span id="garage-coins">0</span>
             </div>
         </div>
 
-        <div class="selection-area">
-            <h3 class="section-label">SELECT VEHICLE</h3>
-            <div class="horizontal-scroll" id="vehicle-list">
-                </div>
-        </div>
-
-        <div class="selection-area">
-            <h3 class="section-label">SELECT STAGE</h3>
-            <div class="horizontal-scroll" id="stage-list">
-                </div>
-        </div>
-
-        <div class="garage-footer">
-            <p>Made by The Solanki Visions</p>
+        <div class="garage-scroll-area">
+            <h3 class="scroll-title">CHOOSE YOUR RIDE</h3>
+            <div class="cards-container" id="vehicle-list"></div>
+            
+            <h3 class="scroll-title">SELECT TERRAIN</h3>
+            <div class="cards-container" id="stage-list"></div>
         </div>
     </div>
 
     <div id="hud-screen" class="hidden">
         <div id="sky-layer"></div>
-        <div id="mountain-layer"></div>
+        <div id="hills-layer"></div>
         
         <canvas id="fx-canvas"></canvas>
 
-        <div class="hud-top">
-            <div class="gauge-cluster">
-                <div class="gauge-row">
-                    <span class="gauge-label">FUEL</span>
-                    <div class="gauge-bar-bg">
-                        <div id="fuel-bar" class="gauge-fill fuel-color"></div>
-                    </div>
+        <div class="hud-dashboard">
+            <div class="gauges">
+                <div class="gauge-wrapper">
+                    <span class="gauge-name">FUEL</span>
+                    <div class="gauge-track"><div id="fuel-bar" class="gauge-val fuel"></div></div>
                 </div>
-                <div class="gauge-row">
-                    <span class="gauge-label">NITRO</span>
-                    <div class="gauge-bar-bg">
-                        <div id="nitro-bar" class="gauge-fill nitro-color"></div>
-                    </div>
+                <div class="gauge-wrapper">
+                    <span class="gauge-name">NITRO</span>
+                    <div class="gauge-track"><div id="nitro-bar" class="gauge-val nitro"></div></div>
                 </div>
             </div>
 
-            <div class="score-cluster">
-                <div class="distance-text"><span id="dist-display">0</span> m</div>
-                <div class="coins-text">🪙 <span id="session-coins">0</span></div>
+            <div class="score-board">
+                <div id="dist-display">0 m</div>
+                <div class="hud-coins">🪙 <span id="session-coins">0</span></div>
             </div>
         </div>
 
-        <div class="touch-controls">
-            <div class="touch-left">
-                <button id="btn-brake" class="pedal brake-pedal">BRAKE</button>
-            </div>
-            <div class="touch-right">
-                <button id="btn-nitro" class="pedal nitro-pedal">N2O</button>
-                <button id="btn-gas" class="pedal gas-pedal">GAS</button>
+        <div id="popup-area"></div>
+
+        <div class="controls-layer">
+            <button id="btn-brake" class="pedal brake">
+                <span>BRAKE</span>
+            </button>
+            
+            <div class="right-pedals">
+                <button id="btn-nitro" class="pedal nitro">
+                    <span>N2O</span>
+                </button>
+                <button id="btn-gas" class="pedal gas">
+                    <span>GAS</span>
+                </button>
             </div>
         </div>
-
-        <div id="popup-container"></div>
     </div>
 
     <div id="report-screen" class="hidden">
-        <div class="report-panel">
-            <h2 id="report-title">CRASHED!</h2>
-            
-            <div class="photo-frame">
+        <div class="report-box">
+            <div class="report-header">RUN ENDED</div>
+            <div class="polaroid">
                 <canvas id="snapshot-canvas"></canvas>
-                <div class="stamp-overlay" id="fail-reason">HEAD INJURY</div>
+                <div class="stamp" id="fail-reason">WRECKED</div>
             </div>
             
-            <div class="stats-container">
-                <div class="stat-item">
-                    <span class="stat-label">DISTANCE</span>
-                    <span class="stat-value" id="rep-distance">0m</span>
+            <div class="stats-table">
+                <div class="stat-row">
+                    <span>DISTANCE</span> <span class="val" id="rep-distance">0m</span>
                 </div>
-                <div class="stat-item">
-                    <span class="stat-label">COINS</span>
-                    <span class="stat-value highlight-gold" id="rep-coins">0</span>
+                <div class="stat-row">
+                    <span>COINS</span> <span class="val gold" id="rep-coins">0</span>
                 </div>
-                <div class="stat-item">
-                    <span class="stat-label">FLIPS</span>
-                    <span class="stat-value" id="rep-flips">0</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">TOTAL EARNED</span>
-                    <span class="stat-value highlight-green" id="rep-total">0</span>
+                <div class="stat-row">
+                    <span>AIR TIME</span> <span class="val" id="rep-air">0s</span>
                 </div>
             </div>
 
             <div class="report-buttons">
-                <button id="btn-menu-return" class="action-btn secondary">GARAGE</button>
-                <button id="btn-restart" class="action-btn primary">RETRY</button>
+                <button id="btn-menu-return" class="rpt-btn">MENU</button>
+                <button id="btn-restart" class="rpt-btn highlight">RETRY</button>
             </div>
-            <p class="watermark">Made by The Solanki Visions</p>
         </div>
     </div>
 
     <canvas id="game-canvas"></canvas>
+
+    <video id="audio-bg-menu" src="background-audio-non-playing.mp4" loop style="display:none;"></video>
+    <video id="audio-bg-game" src="background-audio-playing.mp4" loop style="display:none;"></video>
 
     <script src="game.js"></script>
 </body>
