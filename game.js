@@ -1,470 +1,368 @@
 /**
- * EXTREME RACING - MASTER FILE V18
+ * EXTREME RACING - ENGINE V19
  * Made by The Solanki Visions
- * Features: Dual-Wheel Suspension, Audio Engine, Slow-Mo, Mobile Optimization
+ * Features: Dual-Point Physics, Instant Response, Zero-Float, Asset Check
  */
 
 /* ==========================================================================
-   1. GAME CONFIGURATION & CONSTANTS
+   1. CONSTANTS & CONFIG
    ========================================================================== */
 const CONFIG = {
-    // Physics
-    gravity: 0.25,
-    friction: 0.97,
-    airResistance: 0.99,
-    suspensionStiffness: 0.1, // Lower = Bouncier
-    rotationSpeed: 0.05,
-    
-    // Engine
-    fps: 60,
+    gravity: 0.6, // BOOSTED: Makes car heavy so it doesn't float
+    friction: 0.96,
+    speedPower: 0.5, // BOOSTED: More torque
     chunkSize: 1000,
-    renderDistance: 1500,
-    deleteDistance: 1000,
-    
-    // Gameplay
-    fuelConsumption: 0.03, // Lowered for less frustration
-    nitroConsumption: 0.4,
-    ppm: 30, // Pixels per Meter scale
-    stuntThreshold: 120 // Frames in air to count as jump
+    renderDist: 2000,
+    ppm: 30, // Pixels per meter
+    maxTilt: 1.2 // Radian limit to prevent crazy spinning
 };
 
-const GAME_STATE = {
-    LOADING: 0,
-    MENU: 1,
-    GARAGE: 2,
-    PLAYING: 3,
-    GAMEOVER: 4
-};
+const STATE = { LOAD: 0, MENU: 1, GARAGE: 2, PLAY: 3, OVER: 4 };
 
-// Singleton Game Instance
+// Main Game Instance
 const Game = {
-    state: GAME_STATE.LOADING,
-    canvas: document.getElementById('game-canvas'),
+    s: STATE.LOAD, // Current State
+    cvs: document.getElementById('game-canvas'),
     ctx: document.getElementById('game-canvas').getContext('2d', { alpha: false }),
-    width: window.innerWidth,
-    height: window.innerHeight,
-    lastTime: 0,
-    timeScale: 1.0, // For Slow Motion effects
-
-    // Core Data
-    score: 0,
-    coins: 0,
-    fuel: 100,
-    nitro: 100,
-    distance: 0,
-    airTime: 0,
-    flips: 0,
+    w: window.innerWidth,
+    h: window.innerHeight,
     
-    // Controls
+    // Audio
+    music: document.getElementById('audio-bg-game'),
+    menuMusic: document.getElementById('audio-bg-menu'),
+
+    // Variables
+    score: 0, coins: 0, fuel: 100, nitro: 100, dist: 0,
     keys: { gas: false, brake: false, nitro: false },
-    
-    // Camera
     camera: { x: 0, y: 0, shake: 0 },
-
-    // Entities
-    terrain: [],
-    coinsObj: [],
-    fuelObj: [],
-    particles: [],
+    
+    // Objects
+    terrain: [], coinsObj: [], fuelObj: [], particles: [],
+    
+    // Time
+    lastTime: 0,
+    timeScale: 1.0
 };
 
 /* ==========================================================================
-   2. ASSET MANAGEMENT & AUDIO ENGINE
+   2. ASSET LOADER (WITH ERROR HANDLERS)
    ========================================================================== */
 const ASSETS = {
-    images: {
+    // Note: Ensure these files exist in your folder!
+    src: {
         'jeep': 'jeep.png',
         'bike': 'bike.png',
         'wood': 'wood.png',
         'mini_monster': 'mini_monster.png',
         'cartoon': 'cartoon.png',
-        'character': 'character.png', // CRITICAL: Your requested driver
-        'fuel': 'fuel_can.png',
-        'coin': 'coin.png'
+        'character': 'character.png', 
+        'coin': 'coin.png',
+        'fuel': 'fuel_can.png'
     },
-    loaded: {}
+    img: {}
 };
 
-// Sound Manager (Rebuilt to fix browser autoplay issues)
-const SOUNDS = {
-    menuLoop: new Audio('background-audio-non-playing.mp4'),
-    gameLoop: new Audio('background-audio-playing.mp4'),
-};
+// Player Data
+let User = { coins: 0, vehicles: ['jeep'], stages: ['country'], curVeh: 'jeep', curStg: 'country' };
 
-// Configure Loops
-SOUNDS.menuLoop.loop = true;
-SOUNDS.gameLoop.loop = true;
-SOUNDS.menuLoop.volume = 0.5;
-SOUNDS.gameLoop.volume = 0.4;
-
-function initAudio() {
-    // Only call this on User Interaction (Start Button)
-    SOUNDS.menuLoop.play().catch(e => console.log("Audio waiting for input"));
-}
-
-// Vehicle Data
-const VEHICLES = [
-    { id: 'jeep', name: 'Classic Jeep', price: 0, speed: 0.8, weight: 1.0, width: 90, img: 'jeep' },
-    { id: 'bike', name: 'Dirt Bike', price: 1000, speed: 1.3, weight: 0.6, width: 70, img: 'bike' },
-    { id: 'wood', name: 'Wood Wagon', price: 2000, speed: 0.7, weight: 1.2, width: 95, img: 'wood' },
-    { id: 'mini_monster', name: 'Beast 4x4', price: 3000, speed: 1.0, weight: 1.5, width: 100, img: 'mini_monster' },
-    { id: 'cartoon', name: 'Pro Racer', price: 4000, speed: 1.4, weight: 0.9, width: 85, img: 'cartoon' }
+// Vehicle Stats
+const CARS = [
+    { id: 'jeep', name: 'Jeep', price: 0, speed: 1.0, weight: 1.0, w: 90 },
+    { id: 'bike', name: 'Moto', price: 1000, speed: 1.4, weight: 0.7, w: 70 },
+    { id: 'wood', name: 'Wagon', price: 2000, speed: 0.8, weight: 1.2, w: 95 },
+    { id: 'mini_monster', name: 'Monster', price: 3000, speed: 1.1, weight: 1.4, w: 100 },
+    { id: 'cartoon', name: 'F1 Toon', price: 4000, speed: 1.5, weight: 0.8, w: 85 }
 ];
 
-// Stages (Procedural Params)
-const STAGES = [
-    { id: 'country', name: 'Green Hills', price: 0, roughness: 40, color: '#4b7c38', sky: '#87CEEB' },
-    { id: 'moon', name: 'Moon Base', price: 1000, roughness: 30, color: '#555', sky: '#000' },
-    { id: 'desert', name: 'Sahara', price: 2000, roughness: 70, color: '#e6c229', sky: '#ffcc66' },
-    { id: 'glaciers', name: 'Ice Peaks', price: 3000, roughness: 50, color: '#aaddff', sky: '#fff' },
-    { id: 'mars', name: 'Mars', price: 4000, roughness: 90, color: '#b83b18', sky: '#ff9966' }
+// Stages
+const LEVELS = [
+    { id: 'country', name: 'Hills', price: 0, rough: 40, col: '#4b7c38', sky: '#87CEEB' },
+    { id: 'moon', name: 'Moon', price: 1000, rough: 30, col: '#555', sky: '#000' },
+    { id: 'desert', name: 'Sand', price: 2000, rough: 60, col: '#e6c229', sky: '#ffcc66' },
+    { id: 'mars', name: 'Mars', price: 4000, rough: 80, col: '#b83b18', sky: '#ff9966' }
 ];
 
-// Persistent Data
-let PlayerData = {
-    coins: 0,
-    unlockedVehicles: ['jeep'],
-    unlockedStages: ['country'],
-    selectedVehicle: 'jeep',
-    selectedStage: 'country'
-};
+async function initSystem() {
+    const saved = localStorage.getItem('er_save');
+    if (saved) User = JSON.parse(saved);
 
-/* ==========================================================================
-   3. ASSET LOADING SEQUENCE
-   ========================================================================== */
-async function loadAssets() {
-    // Load Save
-    const save = localStorage.getItem('extreme_racing_save');
-    if (save) PlayerData = JSON.parse(save);
-
-    const promises = [];
-    for (let key in ASSETS.images) {
-        promises.push(new Promise((resolve) => {
-            const img = new Image();
-            img.src = ASSETS.images[key];
-            img.onload = () => { ASSETS.loaded[key] = img; updateLoader(); resolve(); };
-            img.onerror = () => { 
-                // Create a fallback colored box if image is missing so game doesn't crash
-                const c = document.createElement('canvas');
-                c.width = 60; c.height = 40;
-                const cx = c.getContext('2d');
-                cx.fillStyle = key === 'character' ? '#FFFF00' : '#FF0000';
-                cx.fillRect(0,0,60,40);
-                ASSETS.loaded[key] = c;
-                updateLoader(); resolve();
+    const loadP = [];
+    for (let k in ASSETS.src) {
+        loadP.push(new Promise(r => {
+            const i = new Image();
+            i.src = ASSETS.src[k];
+            i.onload = () => { ASSETS.img[k] = i; updateLoadBar(); r(); };
+            i.onerror = () => { 
+                // Fallback: Create a colored rect so game doesn't break
+                const c = document.createElement('canvas'); c.width=50; c.height=50;
+                const x = c.getContext('2d'); x.fillStyle = 'red'; x.fillRect(0,0,50,50);
+                ASSETS.img[k] = c; updateLoadBar(); r(); 
             };
         }));
     }
-    
-    await Promise.all(promises);
-    
-    // Initialize Logic
+    await Promise.all(loadP);
     document.getElementById('loading-screen').classList.add('hidden');
-    switchState(GAME_STATE.MENU);
+    changeState(STATE.MENU);
 }
 
-function updateLoader() {
-    const total = Object.keys(ASSETS.images).length;
-    const loaded = Object.keys(ASSETS.loaded).length;
-    const pct = (loaded / total) * 100;
-    document.getElementById('loader-fill').style.width = `${pct}%`;
+function updateLoadBar() {
+    const t = Object.keys(ASSETS.src).length;
+    const l = Object.keys(ASSETS.img).length;
+    document.getElementById('loader-fill').style.width = (l/t)*100 + "%";
 }
 
 /* ==========================================================================
-   4. PHYSICS ENGINE (DUAL-WHEEL RAYCAST) - THE FIX
+   3. PHYSICS ENGINE (THE FIX)
    ========================================================================== */
-class CarPhysics {
+class PhysicsCar {
     constructor(type) {
-        const stats = VEHICLES.find(v => v.id === type);
-        this.width = stats.width;
-        this.height = this.width / 2;
+        const data = CARS.find(c => c.id === type);
+        this.w = data.w;
+        this.h = this.w / 2;
         
-        // Physics State
-        this.x = 0; // Starts at 0
-        this.y = -100;
-        this.vx = 0;
-        this.vy = 0;
-        this.angle = 0; // Rotation
-        this.va = 0;    // Angular Velocity
+        // Physics
+        this.x = 200; 
+        this.y = -500; // Start high to drop
+        this.vx = 0; this.vy = 0;
+        this.ang = 0; this.va = 0;
         
         // Stats
-        this.speedPower = stats.speed;
-        this.weight = stats.weight;
-        this.onGround = false;
+        this.power = data.speed;
+        this.mass = data.weight;
+        this.grounded = false;
         
-        // Driver Position (Relative to center)
-        this.driverX = -10;
-        this.driverY = -15;
-        this.driverDead = false;
+        // Driver
+        this.dead = false;
+        this.headOffset = {x: 0, y: -20};
     }
 
-    update() {
-        if (this.driverDead) return;
+    tick() {
+        if (this.dead) return;
 
-        const stage = STAGES.find(s => s.id === PlayerData.selectedStage);
-        const gravity = (stage.id === 'moon' ? 0.1 : 0.25) * Game.timeScale;
+        // 1. Gravity
+        const stage = LEVELS.find(l => l.id === User.curStg);
+        const g = (stage.id === 'moon' ? 0.2 : CONFIG.gravity) * Game.timeScale;
+        this.vy += g * this.mass;
 
-        // 1. Apply Gravity
-        this.vy += gravity * this.weight;
-
-        // 2. Input Handling
+        // 2. Input
         if (Game.fuel > 0) {
             if (Game.keys.gas) {
-                if (this.onGround) {
-                    this.vx += (0.4 * this.speedPower) * Game.timeScale;
-                    spawnParticles(this.x - 30, this.y + 15, '#888', 'dust');
+                if (this.grounded) {
+                    this.vx += (CONFIG.speedPower * this.power) * Game.timeScale;
+                    // Visual feedback
+                    this.ang -= 0.02 * Game.timeScale; // Wheelie effect
+                    createPart(this.x - 30, this.y + 20, '#aaa', 1); // Dust
                 } else {
-                    this.va -= 0.005 * Game.timeScale; // Air Control
+                    this.va -= 0.005 * Game.timeScale; // Air rotation
                 }
-                Game.fuel -= CONFIG.fuelConsumption * Game.timeScale;
+                Game.fuel -= 0.05 * Game.timeScale;
             }
-            
             if (Game.keys.brake) {
-                if (this.onGround) {
-                    this.vx -= (0.3 * this.speedPower) * Game.timeScale;
-                } else {
-                    this.va += 0.005 * Game.timeScale;
-                }
+                if (this.grounded) this.vx -= (CONFIG.speedPower * 0.8) * Game.timeScale;
+                else this.va += 0.005 * Game.timeScale;
             }
-
-            // Nitro
             if (Game.keys.nitro && Game.nitro > 0) {
-                this.vx += (this.onGround ? 0.8 : 0.3) * Game.timeScale;
-                Game.nitro -= CONFIG.nitroConsumption * Game.timeScale;
-                spawnParticles(this.x - 40, this.y, '#00F3FF', 'flame');
-                addScreenShake(2);
+                this.vx += (this.grounded ? 1.0 : 0.4) * Game.timeScale;
+                Game.nitro -= 0.5 * Game.timeScale;
+                createPart(this.x - 40, this.y, '#00f3ff', 2); // Flame
+                shakeCam(2);
             }
         }
 
-        // 3. Air Resistance / Friction
+        // 3. Friction
         this.vx *= CONFIG.friction;
-        this.va *= 0.95; // Angular drag to stop infinite spin
+        this.va *= 0.95;
 
-        // 4. Update Position
+        // 4. Move
         this.x += this.vx * Game.timeScale;
         this.y += this.vy * Game.timeScale;
-        this.angle += this.va * Game.timeScale;
+        this.ang += this.va * Game.timeScale;
 
-        // 5. TERRAIN COLLISION (DUAL RAYCAST SYSTEM)
-        this.handleTerrain();
+        // 5. TERRAIN RESOLUTION (The anti-float logic)
+        this.resolveTerrain();
 
-        // 6. Update Distance
-        if (this.x / CONFIG.ppm > Game.distance) {
-            Game.distance = Math.floor(this.x / CONFIG.ppm);
-        }
+        // 6. Stats
+        if(this.x/CONFIG.ppm > Game.dist) Game.dist = Math.floor(this.x/CONFIG.ppm);
     }
 
-    handleTerrain() {
-        // Calculate Wheel Positions based on rotation
-        const cos = Math.cos(this.angle);
-        const sin = Math.sin(this.angle);
-        
-        // Wheel offset (half width)
-        const wOff = this.width / 2.5; 
-        
-        // Front Wheel X
-        const fx = this.x + (wOff * cos);
-        // Rear Wheel X
-        const rx = this.x - (wOff * cos);
+    resolveTerrain() {
+        // Dual Raycast Points (Front & Back Wheels)
+        const wheelOff = this.w * 0.35;
+        const cos = Math.cos(this.ang);
+        const sin = Math.sin(this.ang);
 
-        // Get Ground Height at both wheels
-        const fGround = getTerrainHeight(fx);
-        const rGround = getTerrainHeight(rx);
+        // Calculate world positions of wheels
+        const fx = this.x + (wheelOff * cos); // Front X
+        const rx = this.x - (wheelOff * cos); // Rear X
         
-        // Center Ground (for height check)
-        const cGround = getTerrainHeight(this.x);
-        
-        // Calculate where the car SHOULD be
-        const desiredAngle = Math.atan2(fGround - rGround, wOff * 2);
-        const carBottom = this.y + (this.height / 2);
+        // Get Ground Height at those X positions
+        const fy = getGroundY(fx);
+        const ry = getGroundY(rx);
+        const cy = getGroundY(this.x); // Center ground
 
-        // Check Collision
-        if (carBottom >= cGround - 5) { // Tolerance
-            this.onGround = true;
-            this.vy = 0;
-            this.y = cGround - (this.height / 2); // Snap to ground
+        // Ideal angle based on terrain slope
+        const slopeAngle = Math.atan2(fy - ry, wheelOff * 2);
+        
+        // Car bottom Y position
+        const carBot = this.y + (this.h * 0.5);
+
+        // Check if hitting ground
+        if (carBot >= cy - 5) {
+            // We are on/in ground
+            this.grounded = true;
+            this.y = cy - (this.h * 0.5); // SNAP to ground surface
+            this.vy = 0; // Stop falling
             
-            // Suspension: Smoothly rotate towards ground angle
-            // This prevents "shaking" by interpolating instead of snapping
-            const diff = desiredAngle - this.angle;
-            this.va += diff * CONFIG.suspensionStiffness; 
+            // Smoothly align rotation to slope (Suspension feel)
+            // Instead of snapping angle, we push angular velocity towards it
+            const diff = slopeAngle - this.ang;
+            this.va += diff * 0.1; 
             
-            // Hard Landing Juice
-            if (this.vy > 10) {
-                addScreenShake(this.vy);
-                spawnParticles(this.x, this.y + 20, '#555', 'dust');
+            // Hard landing impact
+            if (this.vy > 15) {
+                shakeCam(5);
+                createPart(this.x, this.y+20, '#555', 5);
             }
         } else {
-            this.onGround = false;
-            Game.airTime++;
+            this.grounded = false;
         }
 
-        // --- DRIVER HEAD COLLISION CHECK ---
-        // Transform local head position to world space
-        const hx = this.x + (this.driverX * cos - this.driverY * sin);
-        const hy = this.y + (this.driverX * sin + this.driverY * cos);
-        const hGround = getTerrainHeight(hx);
-
-        if (hy >= hGround) {
-            // Head hit ground
-            triggerGameOver("HEAD INJURY");
+        // HEAD COLLISION CHECK
+        const hx = this.x + (this.headOffset.x * cos - this.headOffset.y * sin);
+        const hy = this.y + (this.headOffset.x * sin + this.headOffset.y * cos);
+        if (hy >= getGroundY(hx)) {
+            gameOver("HEAD SMASH");
         }
     }
 
-    draw(ctx) {
+    render(ctx) {
         ctx.save();
         ctx.translate(this.x - Game.camera.x, this.y - Game.camera.y);
-        ctx.rotate(this.angle);
+        ctx.rotate(this.ang);
         
-        // 1. Draw Car Body
-        const img = ASSETS.loaded[PlayerData.selectedVehicle];
-        if (img) {
-            ctx.drawImage(img, -this.width/2, -this.height/2, this.width, this.height);
+        // Draw Car
+        if (ASSETS.img[User.curVeh]) {
+            ctx.drawImage(ASSETS.img[User.curVeh], -this.w/2, -this.h/2, this.w, this.h);
         } else {
-            // Fallback Box
-            ctx.fillStyle = 'red';
-            ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+            ctx.fillStyle = 'red'; ctx.fillRect(-this.w/2, -this.h/2, this.w, this.h);
         }
 
-        // 2. Draw Driver (Character.png)
-        // Positioned explicitly relative to car center
-        const driverImg = ASSETS.loaded['character'];
-        if (driverImg) {
-            // Physics Bobbing
-            const bob = Math.sin(Date.now() / 100) * 2;
-            const lean = this.vx * 0.05; // Lean back on accel
-            
+        // Draw Character (Responsive Driver)
+        if (ASSETS.img['character']) {
+            // Head bob based on velocity
+            const lean = this.vx * 0.05; 
             ctx.save();
-            ctx.translate(this.driverX, this.driverY + bob);
+            ctx.translate(this.headOffset.x, this.headOffset.y);
             ctx.rotate(lean);
-            // Draw centered on head pivot
-            ctx.drawImage(driverImg, -15, -15, 30, 30);
+            ctx.drawImage(ASSETS.img['character'], -15, -15, 30, 30);
             ctx.restore();
         }
-
         ctx.restore();
     }
 }
 
 /* ==========================================================================
-   5. TERRAIN GENERATOR (With Safe Zone)
+   4. TERRAIN SYSTEM (SAFE SPAWN)
    ========================================================================== */
-function getTerrainHeight(x) {
-    if (Game.terrain.length === 0) return Game.height - 150;
+function getGroundY(x) {
+    if (Game.terrain.length === 0) return Game.h - 150;
+    const seg = 50; 
+    const idx = Math.floor(x / seg);
     
-    const segment = 50; // Distance between points
-    const idx = Math.floor(x / segment);
-    
-    // Bounds check
+    // Safety bounds
     if (idx < 0) return Game.terrain[0];
-    if (idx >= Game.terrain.length - 1) return Game.terrain[Game.terrain.length - 1];
+    if (idx >= Game.terrain.length - 1) return Game.terrain[Game.terrain.length-1];
     
-    // Linear Interpolation for smooth lines between points
-    const t = (x % segment) / segment;
+    // Interpolate
+    const t = (x % seg) / seg;
     const y1 = Game.terrain[idx];
     const y2 = Game.terrain[idx+1];
-    
     return y1 + t * (y2 - y1);
 }
 
-function generateTerrain(startIndex, count) {
-    const stage = STAGES.find(s => s.id === PlayerData.selectedStage);
-    let prevY = Game.terrain.length > 0 ? Game.terrain[Game.terrain.length - 1] : Game.height - 150;
+function genTerrain(start, len) {
+    const stage = LEVELS.find(l => l.id === User.curStg);
+    let py = Game.terrain.length > 0 ? Game.terrain[Game.terrain.length-1] : Game.h - 200;
     
-    for (let i = 0; i < count; i++) {
-        const realIndex = startIndex + i;
-        
-        let newY = prevY;
+    for (let i = 0; i < len; i++) {
+        const absIdx = start + i;
+        let ny = py;
 
-        // **SAFE ZONE LOGIC**: First 20 segments (1000px) are FLAT
-        if (realIndex < 20) {
-            newY = Game.height - 150;
+        // SAFE ZONE: First 30 segments (1500px) are FLAT
+        if (absIdx < 30) {
+            ny = Game.h - 200;
         } else {
-            // Noise Generation
-            const noise = Math.sin(realIndex * 0.1) + Math.sin(realIndex * 0.03) * 2.5;
-            newY += noise * (stage.roughness / 5);
+            // Noise
+            const noise = Math.sin(absIdx * 0.1) * 2 + Math.cos(absIdx * 0.05) * 5;
+            ny += (Math.random() - 0.5) * (stage.rough / 3) + noise;
             
-            // Random Jumps
-            if (realIndex % 150 > 140) newY -= 15; // Ramp Up
-            if (realIndex % 150 === 0) newY += 80; // Drop Off
+            // Constraints
+            if (ny > Game.h - 50) ny = Game.h - 50;
+            if (ny < 200) ny = 200;
         }
+        
+        Game.terrain.push(ny);
+        py = ny;
 
-        // Floor/Ceiling Clamp
-        if (newY > Game.height - 50) newY = Game.height - 50;
-        if (newY < 200) newY = 200;
-        
-        Game.terrain.push(newY);
-        prevY = newY;
-        
-        // Spawn Items (Only after safe zone)
-        if (realIndex > 20) {
-            const xPos = realIndex * 50;
-            if (Math.random() < 0.3) Game.coinsObj.push({x: xPos, y: newY - 40, c: false});
-            if (Math.random() < 0.02) Game.fuelObj.push({x: xPos, y: newY - 40, c: false});
+        // Items (After safe zone)
+        if (absIdx > 30) {
+            const x = absIdx * 50;
+            if (Math.random() < 0.2) Game.coinsObj.push({x: x, y: ny - 50, act: true});
+            if (Math.random() < 0.03) Game.fuelObj.push({x: x, y: ny - 50, act: true});
         }
     }
 }
 
 /* ==========================================================================
-   6. PARTICLE EFFECTS (Juice)
+   5. PARTICLE SYSTEM
    ========================================================================== */
 class Particle {
-    constructor(x, y, color, type) {
-        this.x = x; this.y = y; this.color = color;
+    constructor(x, y, col, size) {
+        this.x = x; this.y = y; this.col = col; this.size = size;
         this.life = 1.0;
-        this.vx = (Math.random() - 0.5) * 5;
-        this.vy = (Math.random() - 0.5) * 5;
-        this.size = Math.random() * 5 + 2;
-        this.decay = 0.03;
+        this.vx = (Math.random()-0.5)*5;
+        this.vy = (Math.random()-0.5)*5;
     }
-    update() {
-        this.x += this.vx * Game.timeScale;
-        this.y += this.vy * Game.timeScale;
-        this.life -= this.decay * Game.timeScale;
+    up() {
+        this.x += this.vx; this.y += this.vy;
+        this.life -= 0.05;
+        this.size *= 0.95;
     }
     draw(ctx) {
         ctx.globalAlpha = this.life;
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.arc(this.x - Game.camera.x, this.y - Game.camera.y, this.size, 0, Math.PI*2);
+        ctx.fillStyle = this.col;
+        ctx.beginPath(); ctx.arc(this.x - Game.camera.x, this.y - Game.camera.y, this.size, 0, Math.PI*2);
         ctx.fill();
-        ctx.globalAlpha = 1.0;
+        ctx.globalAlpha = 1;
     }
 }
-
-function spawnParticles(x, y, color, type) {
-    for(let i=0; i<5; i++) Game.particles.push(new Particle(x, y, color, type));
-}
-
-function addScreenShake(amount) {
-    Game.camera.shake = amount;
-}
+function createPart(x, y, c, s) { for(let i=0; i<3; i++) Game.particles.push(new Particle(x, y, c, s)); }
 
 /* ==========================================================================
-   7. MAIN LOOP & LOGIC
+   6. GAME LOOP
    ========================================================================== */
-let car;
+let player;
 
 function startGame() {
-    // Reset State
-    Game.state = GAME_STATE.PLAYING;
-    Game.timeScale = 1.0;
+    Game.s = STATE.PLAY;
     Game.score = 0; Game.coins = 0; Game.fuel = 100; Game.nitro = 100;
-    Game.distance = 0; Game.airTime = 0;
     Game.terrain = []; Game.coinsObj = []; Game.fuelObj = []; Game.particles = [];
-    
-    // Play Audio (Requires user interaction first, which this function is bound to)
-    SOUNDS.menuLoop.pause();
-    SOUNDS.gameLoop.currentTime = 0;
-    SOUNDS.gameLoop.play().catch(e => console.log("Audio block"));
+    Game.timeScale = 1.0;
+    Game.dist = 0;
 
-    // Initial Terrain (Start Flat)
-    generateTerrain(0, 100);
+    // AUDIO FIX: Played on button click
+    Game.menuMusic.pause();
+    Game.music.currentTime = 0;
+    Game.music.play();
+
+    // Gen Safe Terrain
+    genTerrain(0, 50);
     
-    // Spawn Car at Safe Spot
-    car = new CarPhysics(PlayerData.selectedVehicle);
-    car.x = 200; 
-    car.y = getTerrainHeight(200) - 100; // Drop from sky
+    // Spawn Player
+    player = new PhysicsCar(User.curVeh);
+    player.x = 300; 
+    // Set Y explicitly to ensure it doesn't fall through
+    player.y = getGroundY(300) - 100; 
 
     // UI
     document.getElementById('menu-screen').classList.add('hidden');
@@ -475,271 +373,204 @@ function startGame() {
     requestAnimationFrame(loop);
 }
 
-function loop(timestamp) {
-    if (Game.state !== GAME_STATE.PLAYING && Game.state !== GAME_STATE.GAMEOVER) return;
+function shakeCam(amt) { Game.camera.shake = amt; }
 
-    // 1. Physics Update
-    car.update();
+function loop(ts) {
+    if (Game.s !== STATE.PLAY && Game.s !== STATE.OVER) return;
 
-    // 2. Camera Update (Lerp + Shake)
-    const targetX = car.x - Game.width / 3;
-    const targetY = car.y - Game.height / 1.5;
+    // 1. Physics
+    player.tick();
+
+    // 2. Camera (Lerp)
+    const tx = player.x - Game.w / 3;
+    const ty = player.y - Game.h / 1.6;
+    Game.camera.x += (tx - Game.camera.x) * 0.1;
+    Game.camera.y += (ty - Game.camera.y) * 0.1;
     
-    // Smooth follow
-    Game.camera.x += (targetX - Game.camera.x) * 0.1;
-    Game.camera.y += (targetY - Game.camera.y) * 0.1;
-    
-    // Add Shake
+    // Shake Apply
     if (Game.camera.shake > 0) {
-        Game.camera.x += (Math.random() - 0.5) * Game.camera.shake;
-        Game.camera.y += (Math.random() - 0.5) * Game.camera.shake;
-        Game.camera.shake *= 0.9; // Decay
-        if (Game.camera.shake < 0.5) Game.camera.shake = 0;
+        Game.camera.x += (Math.random()-0.5) * Game.camera.shake;
+        Game.camera.y += (Math.random()-0.5) * Game.camera.shake;
+        Game.camera.shake *= 0.9;
+        if(Game.camera.shake < 0.5) Game.camera.shake = 0;
     }
 
-    // 3. Render World
-    render();
+    // 3. Terrain Gen
+    const edge = Math.floor((Game.camera.x + Game.w + 500) / 50);
+    if (edge > Game.terrain.length) genTerrain(Game.terrain.length, 20);
 
-    // 4. Terrain Expansion
-    const edge = Math.floor((Game.camera.x + Game.width + 500) / 50);
-    if (edge > Game.terrain.length) generateTerrain(Game.terrain.length, 20);
+    // 4. Collectibles
+    Game.coinsObj.forEach(c => {
+        if (c.act && Math.hypot(c.x-player.x, c.y-player.y) < 50) {
+            c.act = false; Game.coins++; createPart(c.x, c.y, 'gold', 5);
+            popup("+1", c.x, c.y);
+        }
+    });
+    Game.fuelObj.forEach(f => {
+        if (f.act && Math.hypot(f.x-player.x, f.y-player.y) < 50) {
+            f.act = false; Game.fuel = 100; createPart(f.x, f.y, 'red', 5);
+            popup("FUEL", f.x, f.y);
+        }
+    });
 
-    // 5. Logic
-    checkCollectibles();
-    updateHUD();
+    // 5. Render
+    const ctx = Game.ctx;
+    ctx.clearRect(0,0,Game.w, Game.h);
+    
+    // Sky
+    const stg = LEVELS.find(l => l.id === User.curStg);
+    ctx.fillStyle = stg.sky; ctx.fillRect(0,0,Game.w, Game.h);
 
-    // 6. Particles
-    for (let i = Game.particles.length - 1; i >= 0; i--) {
-        Game.particles[i].update();
-        if (Game.particles[i].life <= 0) Game.particles.splice(i, 1);
+    // Terrain Draw
+    ctx.fillStyle = stg.col;
+    ctx.beginPath();
+    const sx = Math.floor(Game.camera.x/50);
+    const ex = sx + Math.ceil(Game.w/50) + 2;
+    if (Game.terrain[sx] !== undefined) {
+        ctx.moveTo(sx*50 - Game.camera.x, Game.terrain[sx] - Game.camera.y);
+        for(let i=sx; i<=ex; i++) {
+            if(Game.terrain[i] !== undefined) 
+                ctx.lineTo(i*50 - Game.camera.x, Game.terrain[i] - Game.camera.y);
+        }
+        ctx.lineTo(ex*50 - Game.camera.x, Game.h);
+        ctx.lineTo(sx*50 - Game.camera.x, Game.h);
+        ctx.fill();
     }
 
-    // 7. Check Fuel Death
-    if (Game.fuel <= 0 && Math.abs(car.vx) < 0.1 && Game.state === GAME_STATE.PLAYING) {
-        triggerGameOver("OUT OF FUEL");
+    // Items
+    Game.coinsObj.forEach(c => { if(c.act) ctx.drawImage(ASSETS.img['coin'], c.x-15-Game.camera.x, c.y-15-Game.camera.y, 30, 30); });
+    Game.fuelObj.forEach(f => { if(f.act) ctx.drawImage(ASSETS.img['fuel'], f.x-15-Game.camera.x, f.y-20-Game.camera.y, 30, 40); });
+
+    // Particles
+    for(let i=Game.particles.length-1; i>=0; i--) {
+        let p = Game.particles[i]; p.up(); p.draw(ctx);
+        if(p.life <= 0) Game.particles.splice(i,1);
     }
+
+    player.render(ctx);
+    
+    // UI Update
+    document.getElementById('dist-display').innerText = Game.dist;
+    document.getElementById('session-coins').innerText = Game.coins;
+    document.getElementById('fuel-bar').style.width = Math.max(0, Game.fuel)+"%";
+    document.getElementById('nitro-bar').style.width = Math.max(0, Game.nitro)+"%";
+
+    if (Game.fuel <= 0 && Math.abs(player.vx) < 0.1 && Game.s === STATE.PLAY) gameOver("EMPTY TANK");
 
     requestAnimationFrame(loop);
 }
 
-function checkCollectibles() {
-    Game.coinsObj.forEach(c => {
-        if (!c.c && (c.x - car.x)**2 + (c.y - car.y)**2 < 2500) {
-            c.c = true;
-            Game.coins++;
-            spawnParticles(c.x, c.y, '#FFD700', 'sparkle');
-            showPopup("+1", c.x, c.y);
-        }
-    });
-    Game.fuelObj.forEach(f => {
-        if (!f.c && (f.x - car.x)**2 + (f.y - car.y)**2 < 2500) {
-            f.c = true;
-            Game.fuel = 100;
-            spawnParticles(f.x, f.y, 'red', 'sparkle');
-            showPopup("FUEL", f.x, f.y);
-        }
-    });
+function popup(txt, x, y) {
+    const d = document.createElement('div');
+    d.className = 'popup-msg'; d.innerText = txt;
+    document.getElementById('popup-area').appendChild(d);
+    setTimeout(()=>d.remove(), 1000);
 }
 
-function showPopup(text, x, y) {
-    const el = document.createElement('div');
-    el.className = 'score-popup';
-    el.innerText = text;
-    document.getElementById('popup-container').appendChild(el);
-    setTimeout(() => el.remove(), 1000);
-}
-
-function render() {
-    const ctx = Game.ctx;
-    ctx.clearRect(0, 0, Game.width, Game.height);
+function gameOver(msg) {
+    Game.s = STATE.OVER;
+    player.dead = true;
+    Game.timeScale = 0.2; // Slow mo effect
+    Game.music.pause();
     
-    // Draw Sky
-    const stage = STAGES.find(s => s.id === PlayerData.selectedStage);
-    ctx.fillStyle = stage.sky;
-    ctx.fillRect(0, 0, Game.width, Game.height);
-
-    // Draw Terrain
-    ctx.fillStyle = stage.color;
-    ctx.beginPath();
-    const start = Math.floor(Game.camera.x / 50);
-    const end = start + Math.ceil(Game.width / 50) + 2;
+    User.coins += Game.coins;
+    localStorage.setItem('er_save', JSON.stringify(User));
     
-    if (Game.terrain[start] !== undefined) {
-        ctx.moveTo(start*50 - Game.camera.x, Game.terrain[start] - Game.camera.y);
-        for(let i=start; i<=end; i++) {
-            if (Game.terrain[i] !== undefined)
-                ctx.lineTo(i*50 - Game.camera.x, Game.terrain[i] - Game.camera.y);
-        }
-        ctx.lineTo(end*50 - Game.camera.x, Game.height);
-        ctx.lineTo(start*50 - Game.camera.x, Game.height);
-        ctx.fill();
-    }
-
-    // Draw Items
-    Game.coinsObj.forEach(c => {
-        if (!c.c) ctx.drawImage(ASSETS.loaded['coin'], c.x - 15 - Game.camera.x, c.y - 15 - Game.camera.y, 30, 30);
-    });
-    Game.fuelObj.forEach(f => {
-        if (!f.c) ctx.drawImage(ASSETS.loaded['fuel'], f.x - 15 - Game.camera.x, f.y - 20 - Game.camera.y, 30, 40);
-    });
-
-    // Draw Particles
-    Game.particles.forEach(p => p.draw(ctx));
-
-    // Draw Car
-    car.draw(ctx);
-}
-
-function updateHUD() {
-    document.getElementById('dist-display').innerText = Game.distance;
-    document.getElementById('session-coins').innerText = Game.coins;
-    document.getElementById('fuel-bar').style.width = `${Math.max(0, Game.fuel)}%`;
-    document.getElementById('nitro-bar').style.width = `${Math.max(0, Game.nitro)}%`;
-}
-
-function triggerGameOver(reason) {
-    if (Game.state === GAME_STATE.GAMEOVER) return; // Prevent double trigger
-    
-    Game.state = GAME_STATE.GAMEOVER;
-    car.driverDead = true;
-    Game.timeScale = 0.2; // Slow Motion Death
-    
-    // Save Data
-    PlayerData.coins += Game.coins;
-    localStorage.setItem('extreme_racing_save', JSON.stringify(PlayerData));
-    
-    // Stop Music
-    SOUNDS.gameLoop.pause();
-    
-    // Snapshot logic
-    const snapCanvas = document.getElementById('snapshot-canvas');
-    const sCtx = snapCanvas.getContext('2d');
-    sCtx.fillStyle = '#111'; sCtx.fillRect(0,0,300,150);
-    sCtx.fillStyle = 'white'; sCtx.fillText("CRASH RECORDED", 50, 75);
-
-    // Update Report UI
-    document.getElementById('fail-reason').innerText = reason;
-    document.getElementById('rep-distance').innerText = `${Game.distance}m`;
+    document.getElementById('fail-reason').innerText = msg;
+    document.getElementById('rep-distance').innerText = Game.dist + "m";
     document.getElementById('rep-coins').innerText = Game.coins;
-    document.getElementById('rep-total').innerText = PlayerData.coins;
+    
+    // Snapshot
+    const sc = document.getElementById('snapshot-canvas');
+    const sx = sc.getContext('2d');
+    sx.fillStyle='#222'; sx.fillRect(0,0,300,150);
+    sx.font="20px Arial"; sx.fillStyle="white"; sx.fillText("WRECKED", 100, 80);
 
-    // Show Report after delay
     setTimeout(() => {
-        Game.timeScale = 1.0; // Reset for next run
         document.getElementById('hud-screen').classList.add('hidden');
         document.getElementById('report-screen').classList.remove('hidden');
+        Game.timeScale = 1.0;
     }, 1500);
 }
 
 /* ==========================================================================
-   8. MENU & GARAGE LOGIC
+   7. UI & INPUT LOGIC
    ========================================================================== */
-function switchState(s) {
-    ['menu-screen', 'garage-screen', 'report-screen'].forEach(id => 
-        document.getElementById(id).classList.add('hidden'));
+function changeState(s) {
+    document.querySelectorAll('.hidden').forEach(e => {}); // no-op
+    ['menu-screen','garage-screen','report-screen'].forEach(id => document.getElementById(id).classList.add('hidden'));
     
-    if(s === GAME_STATE.MENU) {
+    if (s === STATE.MENU) {
         document.getElementById('menu-screen').classList.remove('hidden');
-        document.getElementById('menu-total-coins').innerText = PlayerData.coins;
-        // Audio
-        initAudio(); 
+        document.getElementById('menu-total-coins').innerText = User.coins;
+        Game.music.pause(); Game.menuMusic.play().catch(()=>{});
     }
-    else if(s === GAME_STATE.GARAGE) {
+    if (s === STATE.GARAGE) {
         document.getElementById('garage-screen').classList.remove('hidden');
-        populateGarage();
+        renderGarage();
     }
 }
 
-function populateGarage() {
-    document.getElementById('garage-coins').innerText = PlayerData.coins;
-    const vList = document.getElementById('vehicle-list');
-    vList.innerHTML = '';
-    
-    VEHICLES.forEach(v => {
+function renderGarage() {
+    const vl = document.getElementById('vehicle-list'); vl.innerHTML = '';
+    const sl = document.getElementById('stage-list'); sl.innerHTML = '';
+    document.getElementById('garage-coins').innerText = User.coins;
+
+    CARS.forEach(c => {
+        const owned = User.vehicles.includes(c.id);
+        const sel = User.curVeh === c.id;
         const d = document.createElement('div');
-        const owned = PlayerData.unlockedVehicles.includes(v.id);
-        const sel = PlayerData.selectedVehicle === v.id;
         d.className = `card ${owned?'unlocked':''} ${sel?'selected':''}`;
-        d.innerHTML = `<div class="card-title">${v.name}</div>
-                       <div class="price-badge">${owned ? 'OWNED' : v.price + ' 🪙'}</div>
-                       <img src="${ASSETS.images[v.img].src}">`;
+        d.innerHTML = `<img src="${ASSETS.img[c.img].src}"><div class="card-name">${c.name}</div><div class="card-price">${owned?'OWNED':c.price}</div>`;
         d.onclick = () => {
-            if(owned) {
-                PlayerData.selectedVehicle = v.id;
-            } else if (PlayerData.coins >= v.price) {
-                PlayerData.coins -= v.price;
-                PlayerData.unlockedVehicles.push(v.id);
-                PlayerData.selectedVehicle = v.id;
-            }
-            populateGarage();
-            localStorage.setItem('extreme_racing_save', JSON.stringify(PlayerData));
+            if(owned) User.curVeh = c.id;
+            else if(User.coins >= c.price) { User.coins -= c.price; User.vehicles.push(c.id); User.curVeh = c.id; }
+            renderGarage(); localStorage.setItem('er_save', JSON.stringify(User));
         };
-        vList.appendChild(d);
+        vl.appendChild(d);
     });
-    
-    // Repeat for Stages...
-    const sList = document.getElementById('stage-list');
-    sList.innerHTML = '';
-    STAGES.forEach(s => {
+
+    LEVELS.forEach(l => {
+        const owned = User.stages.includes(l.id);
+        const sel = User.curStg === l.id;
         const d = document.createElement('div');
-        const owned = PlayerData.unlockedStages.includes(s.id);
-        const sel = PlayerData.selectedStage === s.id;
         d.className = `card ${owned?'unlocked':''} ${sel?'selected':''}`;
-        d.style.background = s.color;
-        d.innerHTML = `<div class="card-title" style="color:white; text-shadow:1px 1px 0 #000">${s.name}</div>
-                       <div class="price-badge">${owned ? 'OWNED' : s.price + ' 🪙'}</div>`;
+        d.style.borderBottom = `5px solid ${l.col}`;
+        d.innerHTML = `<div class="card-name" style="margin-top:40px;">${l.name}</div><div class="card-price">${owned?'OWNED':l.price}</div>`;
         d.onclick = () => {
-            if(owned) PlayerData.selectedStage = s.id;
-            else if(PlayerData.coins >= s.price) {
-                PlayerData.coins -= s.price;
-                PlayerData.unlockedStages.push(s.id);
-                PlayerData.selectedStage = s.id;
-            }
-            populateGarage();
-            localStorage.setItem('extreme_racing_save', JSON.stringify(PlayerData));
+            if(owned) User.curStg = l.id;
+            else if(User.coins >= l.price) { User.coins -= l.price; User.stages.push(l.id); User.curStg = l.id; }
+            renderGarage(); localStorage.setItem('er_save', JSON.stringify(User));
         };
-        sList.appendChild(d);
+        sl.appendChild(d);
     });
 }
 
-// Input Binding
+// Binds
 window.addEventListener('keydown', e => {
-    if(e.code==='ArrowRight'||e.code==='KeyD') Game.keys.gas = true;
-    if(e.code==='ArrowLeft'||e.code==='KeyA') Game.keys.brake = true;
-    if(e.code==='ShiftLeft') Game.keys.nitro = true;
+    if(e.code==='ArrowRight'||e.code==='KeyD') Game.keys.gas=true;
+    if(e.code==='ArrowLeft'||e.code==='KeyA') Game.keys.brake=true;
+    if(e.code==='ShiftLeft') Game.keys.nitro=true;
 });
 window.addEventListener('keyup', e => {
-    if(e.code==='ArrowRight'||e.code==='KeyD') Game.keys.gas = false;
-    if(e.code==='ArrowLeft'||e.code==='KeyA') Game.keys.brake = false;
-    if(e.code==='ShiftLeft') Game.keys.nitro = false;
+    if(e.code==='ArrowRight'||e.code==='KeyD') Game.keys.gas=false;
+    if(e.code==='ArrowLeft'||e.code==='KeyA') Game.keys.brake=false;
+    if(e.code==='ShiftLeft') Game.keys.nitro=false;
 });
 
-// Touch
-const bGas = document.getElementById('btn-gas');
-const bBrake = document.getElementById('btn-brake');
-const bNitro = document.getElementById('btn-nitro');
+const bindTouch = (id, key) => {
+    const el = document.getElementById(id);
+    el.addEventListener('touchstart', e => { e.preventDefault(); Game.keys[key] = true; });
+    el.addEventListener('touchend', e => { e.preventDefault(); Game.keys[key] = false; });
+};
+bindTouch('btn-gas', 'gas');
+bindTouch('btn-brake', 'brake');
+bindTouch('btn-nitro', 'nitro');
 
-bGas.addEventListener('touchstart', e=>{e.preventDefault(); Game.keys.gas=true;});
-bGas.addEventListener('touchend', e=>{e.preventDefault(); Game.keys.gas=false;});
-bBrake.addEventListener('touchstart', e=>{e.preventDefault(); Game.keys.brake=true;});
-bBrake.addEventListener('touchend', e=>{e.preventDefault(); Game.keys.brake=false;});
-bNitro.addEventListener('touchstart', e=>{e.preventDefault(); Game.keys.nitro=true;});
-bNitro.addEventListener('touchend', e=>{e.preventDefault(); Game.keys.nitro=false;});
-
-// UI Buttons
 document.getElementById('btn-start').onclick = startGame;
-document.getElementById('btn-garage').onclick = () => switchState(GAME_STATE.GARAGE);
-document.getElementById('btn-back-menu').onclick = () => switchState(GAME_STATE.MENU);
-document.getElementById('btn-menu-return').onclick = () => switchState(GAME_STATE.MENU);
+document.getElementById('btn-garage').onclick = () => changeState(STATE.GARAGE);
+document.getElementById('btn-back-menu').onclick = () => changeState(STATE.MENU);
+document.getElementById('btn-menu-return').onclick = () => changeState(STATE.MENU);
 document.getElementById('btn-restart').onclick = startGame;
 
-window.onload = () => {
-    window.addEventListener('resize', () => {
-        Game.width = window.innerWidth;
-        Game.height = window.innerHeight;
-        Game.canvas.width = Game.width;
-        Game.canvas.height = Game.height;
-    });
-    window.dispatchEvent(new Event('resize'));
-    loadAssets();
-}
+window.onload = initSystem;
