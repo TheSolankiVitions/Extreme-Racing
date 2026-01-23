@@ -1,134 +1,429 @@
-body {
+/* =========================================
+   1. CORE RESET & VARIABLES
+   ========================================= */
+:root {
+    --primary: #ffcc00; /* Solanki Gold */
+    --danger: #ff3333;
+    --dark: #111111;
+    --panel: rgba(20, 20, 20, 0.95);
+    --font-main: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+* {
+    box-sizing: border-box;
     margin: 0;
-    overflow: hidden;
-    background-color: #0a0a0a;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    color: white;
+    padding: 0;
     user-select: none;
     -webkit-user-select: none;
+    touch-action: none; /* Prevents scroll on mobile */
 }
 
-/* Splash Screen */
-#splash-screen {
-    position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: linear-gradient(135deg, #1a1a1a, #000);
+body {
+    background-color: #000;
+    color: white;
+    font-family: var(--font-main);
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+}
+
+.hidden {
+    display: none !important;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* =========================================
+   2. UI CONTAINERS
+   ========================================= */
+#loading-screen, #menu-screen, #garage-screen, #hud-screen, #report-screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10;
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
-    z-index: 9999;
-    transition: opacity 0.5s ease;
-}
-.splash-content { text-align: center; }
-.brand { color: #aaa; font-size: 0.9rem; margin-bottom: 20px; letter-spacing: 2px; }
-.loader-bar { width: 300px; height: 6px; background: #333; border-radius: 3px; overflow: hidden; margin: 0 auto; }
-.loader-fill { height: 100%; background: #00ff88; width: 0%; transition: width 0.1s; }
-
-/* Glassmorphism Containers */
-.glass-panel {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
-    border-radius: 16px;
 }
 
-/* Garage UI */
-.garage-container {
-    position: absolute;
-    top: 0; left: 0; width: 100%; height: 100%;
-    display: flex;
-    flex-direction: column;
-    padding: 20px;
-    box-sizing: border-box;
+/* =========================================
+   3. LOADING SCREEN
+   ========================================= */
+#loading-screen {
+    background: #000;
+    z-index: 100;
 }
 
-.garage-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-bottom: 20px;
+.loader-content {
+    text-align: center;
+    width: 80%;
+    max-width: 400px;
 }
 
-.currency-display {
-    font-size: 1.5rem;
-    color: #ffd700;
-    font-weight: bold;
-    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+.loader-content h1 {
+    font-size: 2rem;
+    color: var(--primary);
+    margin-bottom: 20px;
+    font-style: italic;
 }
 
-.garage-scroll {
-    display: flex;
-    gap: 20px;
-    overflow-x: auto;
-    padding: 10px;
+.progress-bar {
+    width: 100%;
+    height: 10px;
+    background: #333;
+    border-radius: 5px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.fill {
+    width: 0%;
     height: 100%;
-    align-items: center;
+    background: var(--primary);
+    transition: width 0.2s;
 }
 
-.card {
-    min-width: 280px;
-    height: 350px;
+/* =========================================
+   4. MENU SCREEN
+   ========================================= */
+#menu-screen {
+    background: radial-gradient(circle, #222 0%, #000 100%);
+}
+
+.game-title {
+    font-size: 4rem;
+    line-height: 0.9;
+    text-align: center;
+    font-style: italic;
+    text-transform: uppercase;
+    background: linear-gradient(45deg, #fff, #999);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 10px;
+}
+
+.studio-tag {
+    color: var(--primary);
+    letter-spacing: 2px;
+    font-size: 0.9rem;
+    margin-bottom: 50px;
+    text-align: center;
+}
+
+.menu-buttons {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: space-between;
-    padding: 20px;
-    transition: transform 0.2s, border-color 0.2s;
-    cursor: pointer;
-    position: relative;
+    gap: 20px;
+    width: 80%;
+    max-width: 300px;
 }
 
-.card:hover { transform: scale(1.02); }
-.card.selected { border: 2px solid #00ff88; background: rgba(0, 255, 136, 0.05); }
-.card img { width: 100%; height: 150px; object-fit: contain; filter: drop-shadow(0 5px 5px rgba(0,0,0,0.5)); }
-
-.btn {
-    padding: 12px 24px;
-    border: none;
-    border-radius: 8px;
+.menu-btn {
+    padding: 15px;
+    font-size: 1.2rem;
+    background: transparent;
+    border: 2px solid white;
+    color: white;
     font-weight: bold;
     cursor: pointer;
     text-transform: uppercase;
-    transition: all 0.2s;
+    transition: 0.2s;
 }
-.btn-buy { background: #ff4757; color: white; }
-.btn-select { background: #00ff88; color: #000; }
-.btn-locked { background: #555; color: #888; cursor: not-allowed; }
-.btn-start { font-size: 2rem; padding: 20px 60px; background: linear-gradient(45deg, #00ff88, #00cc6a); color: black; box-shadow: 0 0 20px rgba(0,255,136,0.4); }
 
-/* HUD */
-.hud {
-    position: absolute;
-    top: 0; left: 0; width: 100%; height: 100%;
-    pointer-events: none;
+.primary-btn {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: black;
 }
-.hud-top {
+
+.menu-btn:active {
+    transform: scale(0.95);
+}
+
+/* =========================================
+   5. GARAGE SCREEN (Visual Heavy)
+   ========================================= */
+#garage-screen {
+    background: rgba(0,0,0,0.9);
+    justify-content: flex-start;
+    padding-top: 20px;
+}
+
+.garage-header {
+    width: 100%;
+    padding: 0 20px;
     display: flex;
     justify-content: space-between;
-    padding: 20px;
-    font-size: 1.5rem;
-    text-shadow: 2px 2px 0 #000;
+    align-items: center;
+    height: 60px;
+    border-bottom: 1px solid #333;
 }
-.fuel-bar-container {
-    position: absolute;
-    top: 60px; left: 20px;
-    width: 200px; height: 10px;
-    background: rgba(0,0,0,0.5);
-    border: 1px solid white;
-}
-.fuel-fill { height: 100%; background: #ff4757; transition: width 0.2s; }
 
-/* Report Modal */
-.report-modal {
+.selector-section {
+    width: 100%;
+    padding: 20px;
+}
+
+.selector-section h3 {
+    color: #888;
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+}
+
+.scroll-container {
+    display: flex;
+    overflow-x: auto;
+    gap: 15px;
+    padding-bottom: 10px;
+}
+
+/* Custom cards for vehicles/stages */
+.card {
+    min-width: 160px;
+    height: 180px;
+    background: #222;
+    border: 2px solid #444;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px;
+    position: relative;
+    opacity: 0.6;
+    transition: 0.3s;
+}
+
+.card.unlocked {
+    opacity: 1;
+    border-color: #666;
+}
+
+.card.selected {
+    border-color: var(--primary);
+    box-shadow: 0 0 15px rgba(255, 204, 0, 0.3);
+    opacity: 1;
+}
+
+.card img {
+    width: 90%;
+    max-height: 80px;
+    object-fit: contain;
+    margin-top: 20px;
+}
+
+.card-info {
+    text-align: center;
+    width: 100%;
+}
+
+.price-tag {
+    background: var(--primary);
+    color: black;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.owned-tag {
+    color: #88ff88;
+    font-size: 0.8rem;
+}
+
+.garage-footer {
+    margin-top: auto;
+    padding: 20px;
+    color: #666;
+    font-size: 0.8rem;
+}
+
+/* =========================================
+   6. HUD (In-Game)
+   ========================================= */
+#hud-screen {
+    justify-content: space-between;
+    pointer-events: none; /* Let clicks pass to controls */
+}
+
+.top-bar {
+    width: 100%;
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+}
+
+.fuel-container {
+    width: 150px;
+}
+
+.fuel-bar-bg {
+    width: 100%;
+    height: 12px;
+    background: #333;
+    border: 1px solid #555;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-top: 5px;
+}
+
+.fuel-bar-fill {
+    height: 100%;
+    width: 100%;
+    background: var(--danger);
+    transform-origin: left;
+}
+
+.distance-container {
+    font-size: 1.5rem;
+    font-weight: bold;
+    font-style: italic;
+}
+
+.controls-overlay {
+    width: 100%;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    pointer-events: auto;
+}
+
+.control-btn {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    border: none;
+    font-weight: bold;
+    color: white;
+    opacity: 0.7;
+    touch-action: manipulation;
+}
+
+.control-btn:active {
+    opacity: 1;
+    transform: scale(0.95);
+}
+
+.brake { background: rgba(255, 50, 50, 0.5); border: 2px solid #ff3333; }
+.gas { background: rgba(50, 255, 50, 0.5); border: 2px solid #33ff33; }
+
+.stunt-popup {
+    position: absolute;
+    top: 30%;
+    font-size: 2rem;
+    color: var(--primary);
+    font-weight: 900;
+    text-shadow: 0 0 10px black;
+    animation: popUp 1s ease-out forwards;
+}
+
+@keyframes popUp {
+    0% { transform: scale(0); opacity: 0; }
+    20% { transform: scale(1.2); opacity: 1; }
+    100% { transform: scale(1); opacity: 0; top: 20%; }
+}
+
+/* =========================================
+   7. POST-GAME REPORT
+   ========================================= */
+#report-screen {
+    background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(5px);
+}
+
+.report-card {
+    background: #1a1a1a;
+    width: 90%;
+    max-width: 450px;
+    border-radius: 10px;
+    padding: 25px;
+    text-align: center;
+    border: 1px solid #444;
+    box-shadow: 0 0 30px rgba(0,0,0,0.5);
+}
+
+.report-card h2 {
+    color: white;
+    margin-bottom: 20px;
+    border-bottom: 2px solid var(--primary);
+    display: inline-block;
+    padding-bottom: 5px;
+}
+
+.snapshot-container {
+    width: 100%;
+    height: 150px;
+    background: #000;
+    margin-bottom: 20px;
+    position: relative;
+    border: 2px solid #fff;
+    overflow: hidden;
+}
+
+#snapshot-canvas {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.stamp {
     position: absolute;
     top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    width: 90%; max-width: 400px;
-    padding: 30px;
-    text-align: center;
-    z-index: 100;
+    transform: translate(-50%, -50%) rotate(-15deg);
+    border: 4px solid var(--danger);
+    color: var(--danger);
+    font-size: 2rem;
+    font-weight: 900;
+    padding: 10px;
+    text-transform: uppercase;
+    opacity: 0.8;
 }
-.snapshot { width: 100%; border-radius: 8px; margin-bottom: 20px; border: 2px solid #fff; }
-.stat-row { display: flex; justify-content: space-between; margin: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    text-align: left;
+    margin-bottom: 25px;
+}
+
+.stat-row {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-row span:first-child {
+    font-size: 0.8rem;
+    color: #888;
+}
+
+.stat-row span:last-child {
+    font-size: 1.1rem;
+    font-weight: bold;
+}
+
+.report-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.report-actions button {
+    flex: 1;
+    font-size: 1rem;
+    padding: 10px;
+}
+
+.brand-text-small {
+    margin-top: 15px;
+    font-size: 0.7rem;
+    color: #444;
+}
