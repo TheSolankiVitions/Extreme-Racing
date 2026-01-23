@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="description" content="Extreme Racing - High Physics 2D Racer by The Solanki Visions">
+    <meta name="description" content="Extreme Racing - Adrenaline Edition">
     <title>Extreme Racing | The Solanki Visions</title>
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -15,7 +15,7 @@
             <div class="progress-bar">
                 <div class="fill" id="loader-fill"></div>
             </div>
-            <p id="loader-text">Loading Assets...</p>
+            <p id="loader-text">Initializing Physics Engine...</p>
             <p class="brand-text">Made by The Solanki Visions</p>
         </div>
     </div>
@@ -27,8 +27,8 @@
         </div>
         
         <div class="menu-buttons">
-            <button id="btn-garage" class="menu-btn">GARAGE & STAGES</button>
-            <button id="btn-start" class="menu-btn primary-btn">START RACE</button>
+            <button id="btn-garage" class="menu-btn">GARAGE</button>
+            <button id="btn-start" class="menu-btn primary-btn">START ENGINE</button>
         </div>
         
         <div class="currency-display">
@@ -40,22 +40,20 @@
     <div id="garage-screen" class="hidden">
         <div class="garage-header">
             <button id="btn-back-menu" class="icon-btn">←</button>
-            <h2>THE GARAGE</h2>
+            <h2>GARAGE</h2>
             <div class="currency-display">
                 <span>🪙</span> <span id="garage-coins">0</span>
             </div>
         </div>
 
         <div class="selector-section">
-            <h3>SELECT VEHICLE</h3>
-            <div class="scroll-container" id="vehicle-list">
-                </div>
+            <h3>SELECT RIDE</h3>
+            <div class="scroll-container" id="vehicle-list"></div>
         </div>
 
         <div class="selector-section">
-            <h3>SELECT STAGE</h3>
-            <div class="scroll-container" id="stage-list">
-                </div>
+            <h3>SELECT BIOME</h3>
+            <div class="scroll-container" id="stage-list"></div>
         </div>
 
         <div class="garage-footer">
@@ -64,59 +62,75 @@
     </div>
 
     <div id="hud-screen" class="hidden">
+        <div id="parallax-bg">
+            <div id="bg-layer-1" class="parallax-layer"></div> <div id="bg-layer-2" class="parallax-layer"></div> </div>
+
+        <canvas id="speed-lines"></canvas>
+
         <div class="top-bar">
-            <div class="fuel-container">
+            <div class="meter-group">
                 <span class="label">FUEL</span>
-                <div class="fuel-bar-bg">
-                    <div id="fuel-fill" class="fuel-bar-fill"></div>
+                <div class="bar-bg">
+                    <div id="fuel-fill" class="bar-fill fuel"></div>
                 </div>
             </div>
-            <div class="distance-container">
-                <span id="dist-display">0m</span>
+            
+            <div class="meter-group">
+                <span class="label">NITRO</span>
+                <div class="bar-bg">
+                    <div id="nitro-fill" class="bar-fill nitro"></div>
+                </div>
             </div>
-            <div class="coins-container">
-                <span>🪙</span> <span id="session-coins">0</span>
+
+            <div class="score-group">
+                <div class="distance-display"><span id="dist-display">0</span>m</div>
+                <div class="coins-display">🪙 <span id="session-coins">0</span></div>
             </div>
         </div>
 
         <div class="controls-overlay">
-            <button id="btn-brake" class="control-btn brake">BRAKE</button>
-            <button id="btn-gas" class="control-btn gas">GAS</button>
+            <div class="left-controls">
+                <button id="btn-brake" class="control-btn brake">BRAKE</button>
+            </div>
+            <div class="right-controls">
+                <button id="btn-nitro" class="control-btn nitro-btn">N2O</button>
+                <button id="btn-gas" class="control-btn gas">GAS</button>
+            </div>
         </div>
 
-        <div id="stunt-text" class="stunt-popup hidden">BACKFLIP! +500</div>
+        <div id="message-area"></div>
     </div>
 
     <div id="report-screen" class="hidden">
         <div class="report-card">
-            <h2>RUN COMPLETE</h2>
-            <div class="snapshot-container">
+            <h2>RUN ANALYSIS</h2>
+            <div class="snapshot-wrapper">
                 <canvas id="snapshot-canvas"></canvas>
-                <div class="stamp" id="fail-reason">OUT OF FUEL</div>
+                <div class="stamp" id="fail-reason">CRASHED</div>
             </div>
             
             <div class="stats-grid">
-                <div class="stat-row">
-                    <span>Distance:</span>
-                    <span id="rep-distance">0m</span>
+                <div class="stat-box">
+                    <span class="label">DISTANCE</span>
+                    <span class="value" id="rep-distance">0m</span>
                 </div>
-                <div class="stat-row">
-                    <span>Coins Collected:</span>
-                    <span id="rep-coins" class="highlight">0</span>
+                <div class="stat-box">
+                    <span class="label">COINS</span>
+                    <span class="value highlight" id="rep-coins">0</span>
                 </div>
-                <div class="stat-row">
-                    <span>Air Time:</span>
-                    <span id="rep-air">0s</span>
+                <div class="stat-box">
+                    <span class="label">AIR TIME</span>
+                    <span class="value" id="rep-air">0s</span>
                 </div>
-                <div class="stat-row">
-                    <span>Stunts (F/B):</span>
-                    <span id="rep-stunts">0 / 0</span>
+                <div class="stat-box">
+                    <span class="label">FLIPS</span>
+                    <span class="value" id="rep-stunts">0</span>
                 </div>
             </div>
 
             <div class="report-actions">
-                <button id="btn-menu-return" class="menu-btn">MAIN MENU</button>
-                <button id="btn-restart" class="menu-btn primary-btn">RACE AGAIN</button>
+                <button id="btn-menu-return" class="menu-btn">MENU</button>
+                <button id="btn-restart" class="menu-btn primary-btn">RETRY</button>
             </div>
             <p class="brand-text-small">Made by The Solanki Visions</p>
         </div>
