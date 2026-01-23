@@ -3,446 +3,130 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Extreme Racing | Solanki Visions</title>
-    
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
-    
-    <style>
-        /* CSS STYLES */
-        body { margin: 0; overflow: hidden; background-color: #0a0a0a; font-family: 'Segoe UI', sans-serif; color: white; user-select: none; -webkit-user-select: none; }
-        
-        /* Glass UI */
-        .glass-panel { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5); }
-        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-top: 5px; }
-        .btn-buy { background: #ff4757; color: white; }
-        .btn-select { background: #00ff88; color: #000; }
-        .btn-locked { background: #333; color: #777; cursor: not-allowed; }
-        
-        /* Garage */
-        .garage-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; }
-        .garage-scroll { display: flex; gap: 20px; overflow-x: auto; padding: 20px 0; height: 100%; align-items: center; }
-        .card { min-width: 260px; height: 320px; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 20px; border: 2px solid transparent; transition: transform 0.2s; }
-        .card:hover { transform: scale(1.02); background: rgba(255,255,255,0.08); }
-        .card.selected { border-color: #00ff88; background: rgba(0, 255, 136, 0.05); }
-        .card img { width: 100%; height: 140px; object-fit: contain; filter: drop-shadow(0 5px 5px rgba(0,0,0,0.5)); }
-
-        /* HUD */
-        .hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-        .hud-top { display: flex; justify-content: space-between; padding: 20px; font-size: 1.5rem; text-shadow: 2px 2px 0 #000; font-weight: bold; }
-        .fuel-bar { position: absolute; top: 70px; left: 20px; width: 200px; height: 12px; background: rgba(0,0,0,0.6); border: 1px solid #fff; }
-        .fuel-fill { height: 100%; background: #ff4757; transition: width 0.2s; }
-        
-        /* Report */
-        .report-modal { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90%; max-width: 400px; padding: 30px; text-align: center; z-index: 100; }
-        .snapshot { width: 100%; border: 2px solid #fff; border-radius: 8px; margin-bottom: 15px; }
-        .stat-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
-    </style>
+    <meta name="description" content="Extreme Racing - High Physics 2D Racer by The Solanki Visions">
+    <title>Extreme Racing | The Solanki Visions</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div id="root"></div>
 
-    <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+    <div id="loading-screen">
+        <div class="loader-content">
+            <h1>EXTREME RACING</h1>
+            <div class="progress-bar">
+                <div class="fill" id="loader-fill"></div>
+            </div>
+            <p id="loader-text">Loading Assets...</p>
+            <p class="brand-text">Made by The Solanki Visions</p>
+        </div>
+    </div>
 
-        // --- ASSET CONFIGURATION ---
-        const ASSETS_LIST = [
-            'jeep.png', 'bike.png', 'wood.png', 'mini_monster.png', 'cartoon.png',
-            'country.png', 'moom.png', 'desert.png', 'glaciers.png', 'mars.png',
-            'driver_head.png', 'wheel.png', 'fuel_can.png', 'coin.png'
-        ];
-
-        // --- 1. GARAGE COMPONENT ---
-        function Garage({ coins, ownedVehicles, ownedStages, selectedVehicle, setSelectedVehicle, selectedStage, setSelectedStage, onBuy, onStart }) {
-            const vehicles = [
-                { id: 'jeep.png', name: 'Classic Jeep', cost: 0 },
-                { id: 'bike.png', name: 'Motocross', cost: 1000 },
-                { id: 'wood.png', name: 'Wood Racer', cost: 2000 },
-                { id: 'mini_monster.png', name: 'Mini Monster', cost: 3000 },
-                { id: 'cartoon.png', name: 'Cartoon Super', cost: 4000 },
-            ];
-            const stages = [
-                { id: 'country.png', name: 'Countryside', cost: 0 },
-                { id: 'moom.png', name: 'Moon Base', cost: 1000 },
-                { id: 'desert.png', name: 'Sahara', cost: 2000 },
-                { id: 'glaciers.png', name: 'Arctic', cost: 3000 },
-                { id: 'mars.png', name: 'Red Planet', cost: 4000 },
-            ];
-            const [tab, setTab] = useState('vehicles');
-
-            return (
-                <div className="garage-container">
-                    <div className="garage-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                        <div><h1>GARAGE</h1><small style={{color:'#888'}}>The Solanki Visions</small></div>
-                        <div style={{fontSize:'1.5rem', color:'#ffd700'}}>🪙 {coins}</div>
-                    </div>
-                    
-                    <div style={{margin:'10px 0'}}>
-                        <button className="btn" style={{opacity: tab==='vehicles'?1:0.5, marginRight:10}} onClick={()=>setTab('vehicles')}>VEHICLES</button>
-                        <button className="btn" style={{opacity: tab==='stages'?1:0.5}} onClick={()=>setTab('stages')}>STAGES</button>
-                    </div>
-
-                    <div className="garage-scroll">
-                        {(tab === 'vehicles' ? vehicles : stages).map(item => {
-                            const isOwned = (tab==='vehicles' ? ownedVehicles : ownedStages).includes(item.id);
-                            const isSelected = (tab==='vehicles' ? selectedVehicle : selectedStage) === item.id;
-                            return (
-                                <div key={item.id} className={`glass-panel card ${isSelected ? 'selected' : ''}`}
-                                     onClick={() => isOwned && (tab==='vehicles' ? setSelectedVehicle(item.id) : setSelectedStage(item.id))}>
-                                    <div style={{alignSelf:'flex-start', fontSize:'0.8rem', color:'#aaa'}}>{isOwned ? 'OWNED' : 'LOCKED'}</div>
-                                    <img src={item.id} onError={(e)=>{e.target.style.display='none'; e.target.parentNode.style.border='1px solid red';}} />
-                                    <h3>{item.name}</h3>
-                                    {isOwned ? 
-                                        <button className="btn btn-select">{isSelected ? 'SELECTED' : 'SELECT'}</button> 
-                                        : 
-                                        <button className={`btn ${coins>=item.cost?'btn-buy':'btn-locked'}`} 
-                                                onClick={(e)=>{e.stopPropagation(); onBuy(item.cost, item.id, tab==='vehicles'?'vehicle':'stage')}}>
-                                            UNLOCK {item.cost}
-                                        </button>
-                                    }
-                                </div>
-                            )
-                        })}
-                    </div>
-                    <div style={{textAlign:'center', marginTop:'auto'}}>
-                        <button className="btn btn-select" style={{fontSize:'1.5rem', padding:'15px 50px'}} onClick={onStart}>START RACE</button>
-                    </div>
-                </div>
-            );
-        }
-
-        // --- 2. GAME ENGINE COMPONENT ---
-        function GameEngine({ vehicleAsset, stageAsset, onGameOver }) {
-            const canvasRef = useRef(null);
-            const [fuel, setFuel] = useState(100);
-            const [distance, setDistance] = useState(0);
-            const [coins, setCoins] = useState(0);
-            
-            useEffect(() => {
-                const { Engine, Render, Runner, Composite, Bodies, Body, Constraint, Vector } = Matter;
-                const engine = Engine.create();
-                const world = engine.world;
-                const runner = Runner.create({ isFixed: true });
-                const canvas = canvasRef.current;
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
-                const ctx = canvas.getContext('2d');
-
-                // --- IMAGES ---
-                const sprites = {
-                    chassis: new Image(), wheel: new Image(), head: new Image(),
-                    stage: new Image(), coin: new Image(), fuel: new Image()
-                };
-                sprites.chassis.src = vehicleAsset;
-                sprites.wheel.src = 'wheel.png';
-                sprites.head.src = 'driver_head.png';
-                sprites.stage.src = stageAsset;
-                sprites.coin.src = 'coin.png';
-                sprites.fuel.src = 'fuel_can.png';
-
-                // --- PHYSICS OBJECTS ---
-                const group = Body.nextGroup(true);
-                // Car Chassis
-                const chassis = Bodies.rectangle(200, 300, 130, 60, { collisionFilter:{group}, density:0.002, friction:0.5, label:'chassis' });
-                
-                // Wheels (Present for physics, but HIDDEN visually)
-                const w1 = Bodies.circle(150, 350, 25, { collisionFilter:{group}, friction:1.0, density:0.01, label:'wheel' });
-                const w2 = Bodies.circle(250, 350, 25, { collisionFilter:{group}, friction:1.0, density:0.01, label:'wheel' });
-                
-                const ax1 = Constraint.create({ bodyA:chassis, bodyB:w1, pointA:{x:-45, y:25}, stiffness:0.1, damping:0.1, length:45 });
-                const ax2 = Constraint.create({ bodyA:chassis, bodyB:w2, pointA:{x:45, y:25}, stiffness:0.1, damping:0.1, length:45 });
-                
-                // Head
-                const head = Bodies.circle(200, 250, 15, { collisionFilter:{group}, label:'head' });
-                const neck = Constraint.create({ bodyA:chassis, bodyB:head, pointA:{x:0,y:-30}, stiffness:0.2, length:5 });
-
-                Composite.add(world, [chassis, w1, w2, ax1, ax2, head, neck]);
-
-                // --- NEW SMOOTH TERRAIN GENERATION ---
-                let terrain = [];
-                let nextX = 0;
-                
-                // Terrain Noise Function
-                const getTerrainHeight = (x) => {
-                    // Combine sine waves for smooth hills
-                    return Math.sin(x * 0.004) * 120 + Math.sin(x * 0.01) * 50; 
-                };
-
-                function addGround() {
-                    const segmentWidth = 100;
-                    const totalSegments = 20; // Generate ahead
-                    
-                    for(let i=0; i<totalSegments; i++){
-                        const x1 = nextX;
-                        const x2 = nextX + segmentWidth;
-                        
-                        // Calculate slope
-                        const y1 = 600 + getTerrainHeight(x1);
-                        const y2 = 600 + getTerrainHeight(x2);
-                        
-                        const centerX = (x1 + x2) / 2;
-                        const centerY = (y1 + y2) / 2;
-                        const angle = Math.atan2(y2 - y1, segmentWidth);
-
-                        // Create Angled Block (The Ramp)
-                        // Height 800 ensures it goes deep down so we don't see bottom
-                        // Width + 5 overlaps slightly to prevent gaps
-                        const ground = Bodies.rectangle(centerX, centerY + 400, segmentWidth + 5, 800, { 
-                            isStatic: true, 
-                            angle: angle,
-                            friction: 1, 
-                            label: 'ground' 
-                        });
-                        
-                        terrain.push(ground);
-                        Composite.add(world, ground);
-                        
-                        // Add Items
-                        if(Math.random() < (nextX<5000?0.8:0.3)) {
-                            const type = Math.random()>0.9 ? 'fuel' : 'coin';
-                            // Place item slightly above the calculated surface y1/y2
-                            const itemY = Math.min(y1, y2) - 50;
-                            const item = Bodies.circle(centerX, itemY, 20, { isStatic:true, isSensor:true, label:type });
-                            Composite.add(world, item);
-                        }
-                        nextX += segmentWidth;
-                    }
-                }
-                
-                addGround(); // Initial Generation
-
-                // Input
-                const keys = {};
-                window.onkeydown = e => keys[e.code] = true;
-                window.onkeyup = e => keys[e.code] = false;
-
-                // Loop
-                let isRunning = true;
-                let airFrames = 0;
-                let flips = 0; 
-                let prevAng = 0;
-                let totRot = 0;
-
-                function loop() {
-                    if(!isRunning) return;
-                    Runner.tick(runner, engine, 1000/60);
-
-                    // Logic
-                    if(fuel > 0) {
-                        if(keys['ArrowRight']) { Body.setAngularVelocity(w1, 0.4); Body.setAngularVelocity(w2, 0.4); setFuel(f=>f-0.05); }
-                        if(keys['ArrowLeft']) { Body.setAngularVelocity(w1, -0.3); Body.setAngularVelocity(w2, -0.3); Body.setAngularVelocity(chassis, -0.05); setFuel(f=>f-0.05); }
-                    } else if(Math.abs(chassis.velocity.x) < 0.1) {
-                        doGameOver('fuel');
-                    }
-
-                    // Stunts
-                    const ang = chassis.angle;
-                    if(Math.abs(chassis.velocity.y) > 1) {
-                        airFrames++;
-                        totRot += (ang - prevAng);
-                        if(Math.abs(totRot) > 6) { flips++; totRot=0; setCoins(c=>c+500); }
-                        if(airFrames%60===0) setCoins(c=>c+50);
-                    } else { airFrames=0; totRot=0; }
-                    prevAng = ang;
-
-                    // Infinite Terrain
-                    const px = chassis.position.x;
-                    // Generate new ground when we get close to the end
-                    if(px > nextX - 2000) addGround();
-                    
-                    // Cleanup old ground to save memory
-                    if(terrain.length > 0 && terrain[0].position.x < px - 1500) {
-                        const old = terrain.shift();
-                        Composite.remove(world, old);
-                    }
-
-                    // Collisions
-                    const bodies = Composite.allBodies(world);
-                    bodies.forEach(b => {
-                        if((b.label==='coin'||b.label==='fuel') && Matter.Collision.collides(chassis, b)) {
-                            if(b.label==='coin') setCoins(c=>c+10);
-                            if(b.label==='fuel') setFuel(100);
-                            Composite.remove(world, b);
-                        }
-                    });
-                    if(Matter.Query.collides(head, bodies.filter(b=>b.label==='ground')).length > 0) doGameOver('crash');
-
-                    // --- RENDER ---
-                    const cx = -px + window.innerWidth/3;
-                    const cy = -chassis.position.y + window.innerHeight/2;
-                    
-                    // 1. Draw Background
-                    ctx.setTransform(1,0,0,1,0,0);
-                    ctx.fillStyle = '#111';
-                    ctx.fillRect(0,0,canvas.width, canvas.height);
-                    
-                    if(sprites.stage.complete && sprites.stage.naturalWidth !== 0) {
-                        const bgX = (cx * 0.2) % canvas.width;
-                        try {
-                            ctx.drawImage(sprites.stage, bgX, 0, canvas.width, canvas.height);
-                            ctx.drawImage(sprites.stage, bgX+canvas.width, 0, canvas.width, canvas.height);
-                            ctx.drawImage(sprites.stage, bgX-canvas.width, 0, canvas.width, canvas.height);
-                        } catch(e){}
-                    }
-
-                    ctx.translate(cx, cy);
-
-                    // 2. Draw Smooth Terrain
-                    ctx.fillStyle = '#2d2d2d'; 
-                    ctx.beginPath();
-                    terrain.forEach(t => {
-                        // Draw Polygon for each ground segment
-                        ctx.moveTo(t.vertices[0].x, t.vertices[0].y);
-                        for(let k=1; k<t.vertices.length; k++) ctx.lineTo(t.vertices[k].x, t.vertices[k].y);
-                        ctx.lineTo(t.vertices[0].x, t.vertices[0].y);
-                    });
-                    ctx.fill();
-                    // Draw White Top Line for visibility
-                    ctx.beginPath();
-                     terrain.forEach(t => {
-                        // The top edge is usually vertices[0] to vertices[1] (depending on rotation)
-                        // A simple loop stroke works well enough for 2D racing
-                        ctx.moveTo(t.vertices[0].x, t.vertices[0].y);
-                        for(let k=1; k<t.vertices.length; k++) ctx.lineTo(t.vertices[k].x, t.vertices[k].y);
-                        ctx.lineTo(t.vertices[0].x, t.vertices[0].y);
-                    });
-                    ctx.strokeStyle='#fff'; ctx.lineWidth=3; ctx.stroke();
-
-                    // Sprites Helper
-                    const draw = (body, img, w, h) => {
-                        ctx.save();
-                        ctx.translate(body.position.x, body.position.y);
-                        ctx.rotate(body.angle);
-                        if(img.complete && img.naturalWidth !== 0) ctx.drawImage(img, -w/2, -h/2, w, h);
-                        else { ctx.fillStyle='purple'; ctx.fillRect(-w/2, -h/2, w, h); } 
-                        ctx.restore();
-                    };
-
-                    // Draw Car
-                    draw(chassis, sprites.chassis, 130, 70); 
-                    // Wheels are skipped here so they are invisible
-                    draw(head, sprites.head, 30, 30);
-                    
-                    bodies.filter(b=>b.label==='coin').forEach(b => draw(b, sprites.coin, 40, 40));
-                    bodies.filter(b=>b.label==='fuel').forEach(b => draw(b, sprites.fuel, 40, 40));
-
-                    setDistance(Math.floor(px/100));
-                    requestAnimationFrame(loop);
-                }
-
-                function doGameOver(reason) {
-                    if(!isRunning) return;
-                    isRunning = false;
-                    const snap = canvas.toDataURL();
-                    onGameOver({ snapshot: snap, coins: coins + Math.floor(distance), distance, flips });
-                }
-
-                requestAnimationFrame(loop);
-                return () => { isRunning = false; Runner.stop(runner); Engine.clear(engine); };
-            }, []);
-
-            return (
-                <>
-                    <canvas ref={canvasRef} />
-                    <div className="hud">
-                        <div className="hud-top"><div>📏 {distance} m</div><div>🪙 {coins}</div></div>
-                        <div className="fuel-bar"><div className="fuel-fill" style={{width:`${Math.max(0,fuel)}%`}}></div></div>
-                    </div>
-                </>
-            )
-        }
-
-        // --- 3. APP ROOT ---
-        function App() {
-            const [view, setView] = useState('garage'); 
-            const [coins, setCoins] = useState(0);
-            const [ownedVehicles, setOwnedV] = useState(['jeep.png']);
-            const [ownedStages, setOwnedS] = useState(['country.png']);
-            const [veh, setVeh] = useState('jeep.png');
-            const [stg, setStg] = useState('country.png');
-            const [stats, setStats] = useState(null);
-
-            // Audio Refs (Safe Mode)
-            const audioMenu = useRef(new Audio('background-audio-non-playing.mp4'));
-            const audioGame = useRef(new Audio('background-audio-playing.mp4'));
-
-            useEffect(() => {
-                audioMenu.current.loop = true; audioGame.current.loop = true;
-                if(view === 'garage' || view === 'report') {
-                    audioGame.current.pause(); audioGame.current.currentTime = 0;
-                    audioMenu.current.play().catch(()=>{});
-                } else {
-                    audioMenu.current.pause(); audioGame.current.play().catch(()=>{});
-                }
-            }, [view]);
-
-            const buy = (cost, id, type) => {
-                if(coins >= cost) {
-                    setCoins(c=>c-cost);
-                    if(type==='vehicle') setOwnedV([...ownedVehicles, id]);
-                    else setOwnedS([...ownedStages, id]);
-                }
-            };
-
-            return (
-                <>
-                    {view==='garage' && <Garage coins={coins} ownedVehicles={ownedVehicles} ownedStages={ownedStages} selectedVehicle={veh} setSelectedVehicle={setVeh} selectedStage={stg} setSelectedStage={setStg} onBuy={buy} onStart={()=>setView('game')} />}
-                    {view==='game' && <GameEngine vehicleAsset={veh} stageAsset={stg} onGameOver={(s)=>{setStats(s); setCoins(c=>c+s.coins); setView('report');}} />}
-                    {view==='report' && stats && (
-                        <div className="glass-panel report-modal">
-                            <h2>RUN COMPLETE</h2>
-                            <img src={stats.snapshot} className="snapshot"/>
-                            <div className="stat-row"><span>Coins</span><span>+{stats.coins}</span></div>
-                            <div className="stat-row"><span>Dist</span><span>{Math.floor(stats.distance)}m</span></div>
-                            <div className="stat-row"><span>Flips</span><span>{stats.flips}</span></div>
-                            <button className="btn btn-select" onClick={()=>setView('garage')} style={{width:'100%', marginTop:20}}>BACK</button>
-                        </div>
-                    )}
-                </>
-            );
-        }
-
-        // --- 4. PRELOADER & BOOT ---
-        const rootEl = document.getElementById('root');
+    <div id="menu-screen" class="hidden">
+        <div class="logo-container">
+            <h1 class="game-title">EXTREME<br>RACING</h1>
+            <p class="studio-tag">Made by The Solanki Visions</p>
+        </div>
         
-        // Simple Preloader Logic
-        let loaded = 0;
-        const total = ASSETS_LIST.length;
-        const splash = document.createElement('div');
-        splash.id = 'splash-screen';
-        splash.innerHTML = `<div><h1 style="color:white; text-align:center;">EXTREME RACING</h1><div class="loader-bar"><div class="loader-fill" id="l-fill"></div></div></div>`;
-        document.body.appendChild(splash);
+        <div class="menu-buttons">
+            <button id="btn-garage" class="menu-btn">GARAGE & STAGES</button>
+            <button id="btn-start" class="menu-btn primary-btn">START RACE</button>
+        </div>
+        
+        <div class="currency-display">
+            <span class="coin-icon">🪙</span>
+            <span id="menu-total-coins">0</span>
+        </div>
+    </div>
 
-        function start() {
-            splash.style.opacity = '0';
-            setTimeout(() => {
-                if(splash.parentNode) splash.parentNode.removeChild(splash);
-                const root = ReactDOM.createRoot(rootEl);
-                root.render(<App />);
-            }, 500);
-        }
+    <div id="garage-screen" class="hidden">
+        <div class="garage-header">
+            <button id="btn-back-menu" class="icon-btn">←</button>
+            <h2>THE GARAGE</h2>
+            <div class="currency-display">
+                <span>🪙</span> <span id="garage-coins">0</span>
+            </div>
+        </div>
 
-        // Force Start after 3 seconds (Safety Valve)
-        setTimeout(start, 3000);
+        <div class="selector-section">
+            <h3>SELECT VEHICLE</h3>
+            <div class="scroll-container" id="vehicle-list">
+                </div>
+        </div>
 
-        // Actual Load
-        ASSETS_LIST.forEach(src => {
-            const img = new Image();
-            img.src = src;
-            img.onload = () => {
-                loaded++;
-                const pct = (loaded/total)*100;
-                if(document.getElementById('l-fill')) document.getElementById('l-fill').style.width = pct+'%';
-                if(loaded === total) start();
-            };
-            img.onerror = () => {
-                // If missing, count it anyway so we don't hang
-                loaded++;
-                if(loaded === total) start();
-            };
-        });
-    </script>
+        <div class="selector-section">
+            <h3>SELECT STAGE</h3>
+            <div class="scroll-container" id="stage-list">
+                </div>
+        </div>
+
+        <div class="garage-footer">
+            <p>Made by The Solanki Visions</p>
+        </div>
+    </div>
+
+    <div id="hud-screen" class="hidden">
+        <div class="top-bar">
+            <div class="fuel-container">
+                <span class="label">FUEL</span>
+                <div class="fuel-bar-bg">
+                    <div id="fuel-fill" class="fuel-bar-fill"></div>
+                </div>
+            </div>
+            <div class="distance-container">
+                <span id="dist-display">0m</span>
+            </div>
+            <div class="coins-container">
+                <span>🪙</span> <span id="session-coins">0</span>
+            </div>
+        </div>
+
+        <div class="controls-overlay">
+            <button id="btn-brake" class="control-btn brake">BRAKE</button>
+            <button id="btn-gas" class="control-btn gas">GAS</button>
+        </div>
+
+        <div id="stunt-text" class="stunt-popup hidden">BACKFLIP! +500</div>
+    </div>
+
+    <div id="report-screen" class="hidden">
+        <div class="report-card">
+            <h2>RUN COMPLETE</h2>
+            <div class="snapshot-container">
+                <canvas id="snapshot-canvas"></canvas>
+                <div class="stamp" id="fail-reason">OUT OF FUEL</div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-row">
+                    <span>Distance:</span>
+                    <span id="rep-distance">0m</span>
+                </div>
+                <div class="stat-row">
+                    <span>Coins Collected:</span>
+                    <span id="rep-coins" class="highlight">0</span>
+                </div>
+                <div class="stat-row">
+                    <span>Air Time:</span>
+                    <span id="rep-air">0s</span>
+                </div>
+                <div class="stat-row">
+                    <span>Stunts (F/B):</span>
+                    <span id="rep-stunts">0 / 0</span>
+                </div>
+            </div>
+
+            <div class="report-actions">
+                <button id="btn-menu-return" class="menu-btn">MAIN MENU</button>
+                <button id="btn-restart" class="menu-btn primary-btn">RACE AGAIN</button>
+            </div>
+            <p class="brand-text-small">Made by The Solanki Visions</p>
+        </div>
+    </div>
+
+    <canvas id="game-canvas"></canvas>
+
+    <video id="audio-bg-menu" src="background-audio-non-playing.mp4" loop style="display:none;"></video>
+    <video id="audio-bg-game" src="background-audio-playing.mp4" loop style="display:none;"></video>
+
+    <script src="game.js"></script>
 </body>
 </html>
