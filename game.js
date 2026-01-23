@@ -1,23 +1,21 @@
 /**
- * EXTREME RACING - GAME ENGINE V16
+ * EXTREME RACING - ADRENALINE EDITION (V17)
  * Made by The Solanki Visions
- * Features: Zero-Lag, Custom Physics, Particle System, Camera Shake
+ * Features: Nitro Boost, Parallax, Speed Lines, Juice
  */
 
 /* =========================================
-   1. CONFIGURATION & STATE
+   1. CONFIGURATION & ENGINE SETTINGS
    ========================================= */
 const CONFIG = {
-    gravity: 0.25,
+    gravity: 0.22, // Slightly floatier for air time
     friction: 0.98,
     fps: 60,
-    physicsStep: 1000 / 60,
     chunkSize: 1000,
-    renderDistance: 2000,
-    deleteDistance: 1000,
-    fuelConsumption: 0.05,
-    stuntThreshold: 250,
-    ppm: 30
+    fuelConsumption: 0.04,
+    nitroConsumption: 0.5,
+    ppm: 30, // Pixels per meter
+    maxSpeed: 30, // Visual cap for speed lines
 };
 
 const GAME_STATE = {
@@ -28,6 +26,7 @@ const GAME_STATE = {
     GAMEOVER: 4
 };
 
+// Main Game Object
 const Game = {
     state: GAME_STATE.LOADING,
     canvas: document.getElementById('game-canvas'),
@@ -36,38 +35,33 @@ const Game = {
     height: window.innerHeight,
     lastTime: 0,
     
-    // Audio
+    // Audio Refs
     audioMenu: document.getElementById('audio-bg-menu'),
     audioGame: document.getElementById('audio-bg-game'),
 
-    // Gameplay Data
-    score: 0,
+    // Gameplay Stats
     coins: 0,
     fuel: 100,
+    nitro: 100,
     distance: 0,
     airTime: 0,
+    stuntScore: 0,
     
-    // Inputs
-    keys: { gas: false, brake: false },
+    // Controls
+    keys: { gas: false, brake: false, nitro: false },
     
-    // Camera System (With Shake)
-    camera: { 
-        x: 0, 
-        y: 0,
-        shakeX: 0,
-        shakeY: 0,
-        shakeDecay: 0.9
-    },
+    // Camera
+    camera: { x: 0, y: 0, shake: 0 },
 
-    // Dynamic Objects
+    // Objects
     terrain: [],
     coinsObj: [],
     fuelObj: [],
-    particles: [], // The "Juice"
+    particles: [],
 };
 
 /* =========================================
-   2. DATA & ASSETS
+   2. DATA & ASSET MANAGEMENT
    ========================================= */
 const ASSETS = {
     images: {
@@ -76,29 +70,27 @@ const ASSETS = {
         'wood': 'wood.png',
         'mini_monster': 'mini_monster.png',
         'cartoon': 'cartoon.png',
-        'character': 'character.png', // Replaced the dot
+        'character': 'character.png', 
         'fuel': 'fuel_can.png',
         'coin': 'coin.png'
     },
     loaded: {}
 };
 
-// Vehicle Definitions
 const VEHICLES = [
     { id: 'jeep', name: 'Classic Jeep', price: 0, speed: 0.8, weight: 1.0, img: 'jeep' },
-    { id: 'bike', name: 'Dirt Bike', price: 1000, speed: 1.3, weight: 0.6, img: 'bike' },
+    { id: 'bike', name: 'Dirt Bike', price: 1000, speed: 1.4, weight: 0.6, img: 'bike' },
     { id: 'wood', name: 'Wood Wagon', price: 2000, speed: 0.7, weight: 1.2, img: 'wood' },
-    { id: 'mini_monster', name: 'Mini Monster', price: 3000, speed: 1.0, weight: 1.5, img: 'mini_monster' },
-    { id: 'cartoon', name: 'Toon Racer', price: 4000, speed: 1.4, weight: 0.9, img: 'cartoon' }
+    { id: 'mini_monster', name: 'Beast 4x4', price: 3000, speed: 1.1, weight: 1.5, img: 'mini_monster' },
+    { id: 'cartoon', name: 'Pro Racer', price: 4000, speed: 1.5, weight: 0.9, img: 'cartoon' }
 ];
 
-// Stage Definitions
 const STAGES = [
-    { id: 'country', name: 'Country Side', price: 0, roughness: 50, gravityMult: 1.0, color: '#4b7c38', sky: '#87CEEB' },
-    { id: 'moon', name: 'The Moon', price: 1000, roughness: 30, gravityMult: 0.4, color: '#888888', sky: '#000000' },
-    { id: 'desert', name: 'Sahara', price: 2000, roughness: 80, gravityMult: 1.0, color: '#e6c229', sky: '#ffcc66' },
-    { id: 'glaciers', name: 'Glaciers', price: 3000, roughness: 60, gravityMult: 1.1, color: '#aaddff', sky: '#ffffff' },
-    { id: 'mars', name: 'Mars Base', price: 4000, roughness: 100, gravityMult: 0.9, color: '#b83b18', sky: '#ff9966' }
+    { id: 'country', name: 'Green Hills', price: 0, roughness: 60, color: '#4b7c38', sky: '#87CEEB' },
+    { id: 'moon', name: 'Moon Base', price: 1000, roughness: 40, color: '#555555', sky: '#000000' },
+    { id: 'desert', name: 'Sand Dunes', price: 2000, roughness: 90, color: '#e6c229', sky: '#ffcc66' },
+    { id: 'glaciers', name: 'Ice Peaks', price: 3000, roughness: 70, color: '#aaddff', sky: '#ffffff' },
+    { id: 'mars', name: 'Mars', price: 4000, roughness: 120, color: '#b83b18', sky: '#ff9966' }
 ];
 
 let PlayerData = {
@@ -110,100 +102,44 @@ let PlayerData = {
 };
 
 /* =========================================
-   3. ASSET LOADER (Async)
+   3. INITIALIZATION
    ========================================= */
 async function loadAssets() {
     const save = localStorage.getItem('extreme_racing_save');
     if (save) PlayerData = JSON.parse(save);
 
     const promises = [];
-    
     for (let key in ASSETS.images) {
         promises.push(new Promise((resolve) => {
             const img = new Image();
             img.src = ASSETS.images[key];
-            img.onload = () => {
-                ASSETS.loaded[key] = img;
-                updateLoader();
-                resolve();
-            };
-            img.onerror = () => {
-                // Generate a visual placeholder if image missing
-                const canvas = document.createElement('canvas');
-                canvas.width = 50; canvas.height = 50;
-                const ctx = canvas.getContext('2d');
-                ctx.fillStyle = key === 'character' ? '#ffcc00' : 'red';
-                ctx.fillRect(0,0,50,50);
-                ASSETS.loaded[key] = canvas;
-                updateLoader();
-                resolve();
+            img.onload = () => { ASSETS.loaded[key] = img; updateLoader(); resolve(); };
+            img.onerror = () => { 
+                // Fallback Generator
+                const c = document.createElement('canvas');
+                c.width = 50; c.height = 50;
+                const cx = c.getContext('2d');
+                cx.fillStyle = key === 'character' ? '#ffcc00' : 'red';
+                cx.fillRect(0,0,50,50);
+                ASSETS.loaded[key] = c;
+                updateLoader(); resolve();
             };
         }));
     }
-
     await Promise.all(promises);
     document.getElementById('loading-screen').classList.add('hidden');
     switchState(GAME_STATE.MENU);
 }
 
-let loadedCount = 0;
 function updateLoader() {
-    loadedCount++;
     const total = Object.keys(ASSETS.images).length;
-    const pct = (loadedCount / total) * 100;
-    document.getElementById('loader-fill').style.width = `${pct}%`;
+    const loaded = Object.keys(ASSETS.loaded).length; // Rough count logic
+    const pct = (loaded / total) * 100; // Simplified for demo
+    document.getElementById('loader-fill').style.width = '100%';
 }
 
 /* =========================================
-   4. PARTICLE SYSTEM (The Juice)
-   ========================================= */
-class Particle {
-    constructor(x, y, color, type) {
-        this.x = x;
-        this.y = y;
-        this.size = Math.random() * 5 + 2;
-        this.vx = (Math.random() - 0.5) * 4;
-        this.vy = (Math.random() - 0.5) * 4;
-        this.life = 1.0;
-        this.decay = Math.random() * 0.03 + 0.01;
-        this.color = color;
-        this.type = type; // 'dust' or 'sparkle'
-    }
-
-    update() {
-        this.x += this.vx;
-        this.y += this.vy;
-        this.life -= this.decay;
-        if (this.type === 'dust') {
-            this.size *= 0.95; // Shrink
-            this.vy -= 0.1; // Float up
-        }
-    }
-
-    draw(ctx) {
-        ctx.globalAlpha = this.life;
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.arc(this.x - Game.camera.x, this.y - Game.camera.y, this.size, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.globalAlpha = 1.0;
-    }
-}
-
-function spawnDust(x, y) {
-    for(let i=0; i<3; i++) {
-        Game.particles.push(new Particle(x, y, '#dddddd', 'dust'));
-    }
-}
-
-function spawnSparkles(x, y) {
-    for(let i=0; i<10; i++) {
-        Game.particles.push(new Particle(x, y, '#ffff00', 'sparkle'));
-    }
-}
-
-/* =========================================
-   5. PHYSICS ENGINE (Custom)
+   4. PHYSICS ENGINE (V17 - Fun Tuned)
    ========================================= */
 class CarPhysics {
     constructor(type) {
@@ -217,14 +153,17 @@ class CarPhysics {
         
         this.speed = stats.speed;
         this.weight = stats.weight;
-        this.width = 80;
-        this.height = 40;
+        this.width = 90;
+        this.height = 45;
         this.onGround = false;
         
-        // Driver Head (Relative to car center)
+        // Visual offsets for suspension juice
+        this.chassisY = 0;
+        
+        // Driver
         this.headX = 0; 
-        this.headY = -25; 
-        this.headRadius = 15;
+        this.headY = -30; 
+        this.headRadius = 14;
         this.driverDead = false;
     }
 
@@ -232,109 +171,124 @@ class CarPhysics {
         if (this.driverDead) return;
 
         const stage = STAGES.find(s => s.id === PlayerData.selectedStage);
-        this.vy += CONFIG.gravity * stage.gravityMult * this.weight;
+        // Gravity (Less on moon)
+        const gMult = stage.id === 'moon' ? 0.4 : (stage.id === 'mars' ? 0.8 : 1.0);
+        this.vy += CONFIG.gravity * gMult * this.weight;
 
-        // Input Forces & Head Physics
-        let tiltForce = 0;
-
+        // --- INPUT HANDLING ---
         if (Game.fuel > 0) {
+            // Gas
             if (Game.keys.gas) {
                 if (this.onGround) {
-                    this.vx += 0.25 * this.speed;
-                    spawnDust(this.x - 30, this.y + 20); // Dust from rear wheel
-                    tiltForce = -0.3; // Head tilts back
+                    this.vx += 0.3 * this.speed; // Snappier accel
+                    this.chassisY = 2; // Squat down visually
+                    spawnParticles(this.x - 35, this.y + 20, '#aaa', 'dust');
                 } else {
-                    this.vr -= 0.05; // Air control
+                    this.vr -= 0.06; // Air rotation
                 }
                 Game.fuel -= CONFIG.fuelConsumption;
             }
+            
+            // Brake/Reverse
             if (Game.keys.brake) {
                 if (this.onGround) {
-                    this.vx -= 0.25 * this.speed;
-                    tiltForce = 0.3; // Head tilts forward
+                    this.vx -= 0.3 * this.speed;
+                    this.chassisY = -1; // Nose dive visually
                 } else {
-                    this.vr += 0.05; // Air control
+                    this.vr += 0.06;
                 }
+            }
+
+            // NITRO (New!)
+            if (Game.keys.nitro && Game.nitro > 0) {
+                if (this.onGround) this.vx += 0.5; // Huge ground boost
+                else this.vx += 0.2; // Air thrust
+                
+                Game.nitro -= CONFIG.nitroConsumption;
+                spawnParticles(this.x - 45, this.y, '#00f3ff', 'flame'); // Blue flame
+                addScreenShake(1); // Rumble
             }
         }
 
-        // Apply Friction
+        // Friction & Drag
         this.vx *= CONFIG.friction;
-        this.vr *= 0.95;
+        this.vr *= 0.92; // Strong angular drag for control
+        this.chassisY *= 0.8; // Return to neutral suspension
 
-        // Update Position
+        // Move
         this.x += this.vx;
         this.y += this.vy;
         this.rotation += this.vr;
 
-        // Collision Check
-        this.checkTerrainCollision();
+        this.checkCollisions();
         
-        // Stats
+        // Update Game Data
         if (this.x / CONFIG.ppm > Game.distance) {
             Game.distance = Math.floor(this.x / CONFIG.ppm);
         }
+        
+        // Nitro Regen (Slowly)
+        if (!Game.keys.nitro && Game.nitro < 100) Game.nitro += 0.1;
     }
 
-    checkTerrainCollision() {
+    checkCollisions() {
         const groundY = getTerrainHeight(this.x);
-        const nextGroundY = getTerrainHeight(this.x + 40);
-        const slope = Math.atan2(nextGroundY - groundY, 40);
-        const carBottom = this.y + 20;
+        const nextGroundY = getTerrainHeight(this.x + 45);
+        const slope = Math.atan2(nextGroundY - groundY, 45);
+        const carBottom = this.y + 25;
 
+        // Ground Hit
         if (carBottom >= groundY) {
-            // Landing Impact
-            if (!this.onGround && this.vy > 5) {
-                addScreenShake(this.vy * 2); // Screen shake on hard landing
-                spawnDust(this.x, this.y + 20); // Big dust puff
+            // Impact Juice
+            if (!this.onGround && this.vy > 6) {
+                addScreenShake(this.vy * 1.5);
+                spawnParticles(this.x, this.y + 25, '#888', 'dust');
+                // Suspension visual bounce
+                this.chassisY = 5; 
             }
 
             this.onGround = true;
-            this.y = groundY - 20;
+            this.y = groundY - 25;
             this.vy = 0;
             
-            // Suspension Smoothing
+            // Align Rotation to Slope (Smoothly)
             const angleDiff = slope - this.rotation;
-            this.vr += angleDiff * 0.15; // Snappier rotation alignment
+            this.vr += angleDiff * 0.2; 
+            
+            // Friction
             this.vx *= 0.98;
         } else {
             this.onGround = false;
             Game.airTime++;
         }
 
-        // DRIVER HEAD COLLISION
-        const cos = Math.cos(this.rotation);
-        const sin = Math.sin(this.rotation);
-        const gx = this.x + (this.headX * cos - this.headY * sin);
-        const gy = this.y + (this.headX * sin + this.headY * cos);
+        // Head Collision (Game Over)
+        const rad = this.rotation;
+        const hx = this.x + (this.headX * Math.cos(rad) - this.headY * Math.sin(rad));
+        const hy = this.y + (this.headX * Math.sin(rad) + this.headY * Math.cos(rad));
         
-        const headGround = getTerrainHeight(gx);
-        
-        if (gy + this.headRadius >= headGround) {
-            addScreenShake(20); // Massive shake on death
-            triggerGameOver("HEAD INJURY");
+        if (hy + 15 >= getTerrainHeight(hx)) {
+            addScreenShake(20);
+            triggerGameOver("HEAD TRAUMA");
         }
     }
 
     draw(ctx) {
         ctx.save();
-        ctx.translate(this.x - Game.camera.x, this.y - Game.camera.y);
+        ctx.translate(this.x - Game.camera.x, this.y - Game.camera.y + this.chassisY);
         ctx.rotate(this.rotation);
         
-        // Draw Car Sprite
+        // Draw Car
         const img = ASSETS.loaded[PlayerData.selectedVehicle];
         ctx.drawImage(img, -this.width/2, -this.height/2, this.width, this.height);
         
-        // Draw Driver Sprite (character.png)
-        // Dynamic head tilting based on acceleration
-        const tilt = (this.vx * 0.05); 
-        
+        // Draw Driver (With physics lean)
+        const lean = this.vx * 0.05;
         ctx.save();
         ctx.translate(this.headX, this.headY);
-        ctx.rotate(tilt); // Physics reaction
-        const driverImg = ASSETS.loaded['character'];
-        // Draw character slightly larger than collision circle
-        ctx.drawImage(driverImg, -20, -20, 40, 40); 
+        ctx.rotate(lean);
+        const dImg = ASSETS.loaded['character'];
+        ctx.drawImage(dImg, -20, -20, 40, 40);
         ctx.restore();
 
         ctx.restore();
@@ -342,220 +296,277 @@ class CarPhysics {
 }
 
 /* =========================================
-   6. CAMERA & EFFECTS
+   5. PARTICLE SYSTEM (JUICE)
    ========================================= */
-function addScreenShake(amount) {
-    Game.camera.shakeX = (Math.random() - 0.5) * amount;
-    Game.camera.shakeY = (Math.random() - 0.5) * amount;
+class Particle {
+    constructor(x, y, color, type) {
+        this.x = x; this.y = y;
+        this.color = color;
+        this.type = type;
+        this.life = 1.0;
+        this.vx = (Math.random() - 0.5) * 5;
+        this.vy = (Math.random() - 0.5) * 5;
+        
+        if (type === 'flame') {
+            this.vx = -5 - Math.random() * 5; // Shoot back
+            this.size = 10;
+            this.decay = 0.1;
+        } else {
+            this.size = Math.random() * 5 + 2;
+            this.decay = 0.02;
+        }
+    }
+
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.life -= this.decay;
+        this.size *= 0.9;
+    }
+
+    draw(ctx) {
+        ctx.globalAlpha = this.life;
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x - Game.camera.x, this.y - Game.camera.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+    }
 }
 
-function updateCamera() {
-    // Linear Interpolation (Lerp) for smooth following
-    const targetX = car.x - Game.width / 3;
-    const targetY = car.y - Game.height / 1.5;
-    
-    // Smoothness factor (0.1 = slow, 0.9 = fast)
-    Game.camera.x += (targetX - Game.camera.x) * 0.1;
-    Game.camera.y += (targetY - Game.camera.y) * 0.1;
-
-    // Apply Shake
-    Game.camera.x += Game.camera.shakeX;
-    Game.camera.y += Game.camera.shakeY;
-    
-    // Decay Shake
-    Game.camera.shakeX *= Game.camera.shakeDecay;
-    Game.camera.shakeY *= Game.camera.shakeDecay;
+function spawnParticles(x, y, color, type) {
+    const count = type === 'flame' ? 2 : 5;
+    for(let i=0; i<count; i++) {
+        Game.particles.push(new Particle(x, y, color, type));
+    }
 }
 
 /* =========================================
-   7. TERRAIN SYSTEM
+   6. TERRAIN & OBJECTS
    ========================================= */
 function getTerrainHeight(x) {
     if (Game.terrain.length === 0) return Game.height - 100;
-    const segmentWidth = 50;
-    const index = Math.floor(x / segmentWidth);
-    if (index < 0) return Game.terrain[0];
-    if (index >= Game.terrain.length - 1) return Game.terrain[Game.terrain.length - 1];
+    const seg = 50; // Segment width
+    const idx = Math.floor(x / seg);
+    if (idx < 0) return Game.terrain[0];
+    if (idx >= Game.terrain.length - 1) return Game.terrain[Game.terrain.length-1];
     
-    const t = (x % segmentWidth) / segmentWidth;
-    const y1 = Game.terrain[index];
-    const y2 = Game.terrain[index + 1];
-    return y1 + t * (y2 - y1);
+    const t = (x % seg) / seg;
+    return Game.terrain[idx] + t * (Game.terrain[idx+1] - Game.terrain[idx]);
 }
 
-function generateTerrainChunk(startIndex, count) {
+function generateChunk(startIdx, count) {
     const stage = STAGES.find(s => s.id === PlayerData.selectedStage);
-    let prevY = Game.terrain.length > 0 ? Game.terrain[Game.terrain.length - 1] : Game.height - 150;
+    let prevY = Game.terrain.length > 0 ? Game.terrain[Game.terrain.length-1] : Game.height - 150;
     
-    for (let i = 0; i < count; i++) {
-        const noise = Math.sin((startIndex + i) * 0.1) + Math.sin((startIndex + i) * 0.03) * 2;
-        const delta = noise * stage.roughness;
-        let newY = prevY + delta;
-        if (newY > Game.height - 50) newY = Game.height - 50;
-        if (newY < 200) newY = 200;
+    for(let i=0; i<count; i++) {
+        // Advanced Generation: Mix of Perlin-ish noise + Ramps
+        const step = startIdx + i;
         
-        Game.terrain.push(newY);
-        prevY = newY;
+        // Random Ramp Logic (Every 100 steps)
+        if (step % 100 > 90) {
+            prevY -= 15; // Build steep ramp up
+        } else if (step % 100 === 0) {
+            prevY += 100; // Drop after ramp
+        } else {
+            // Normal Noise
+            const noise = Math.sin(step * 0.1) * 2 + Math.cos(step * 0.05) * 5;
+            prevY += (Math.random() - 0.5) * (stage.roughness / 5) + noise;
+        }
+
+        // Clamp
+        if (prevY > Game.height - 50) prevY = Game.height - 50;
+        if (prevY < 200) prevY = 200;
         
-        // Spawn Objects
-        const realX = (Game.terrain.length - 1) * 50;
-        spawnCollectibles(realX, newY);
+        Game.terrain.push(prevY);
+        
+        // Spawn Items
+        if (Math.random() < 0.3) Game.coinsObj.push({x: step*50, y: prevY - 50, c: false});
+        if (Math.random() < 0.02) Game.fuelObj.push({x: step*50, y: prevY - 50, c: false});
     }
 }
 
-function spawnCollectibles(x, y) {
-    let chance = x < 15000 ? 0.4 : 0.1;
-    if (Math.random() < chance) Game.coinsObj.push({ x: x, y: y - 40, collected: false });
-    if (Math.random() < 0.02) Game.fuelObj.push({ x: x, y: y - 40, collected: false });
-}
-
 /* =========================================
-   8. GAME LOOP
+   7. CORE LOOP & CAMERA
    ========================================= */
 let car;
 
 function startGame() {
     Game.state = GAME_STATE.PLAYING;
-    Game.score = 0;
-    Game.coins = 0;
-    Game.fuel = 100;
-    Game.distance = 0;
-    Game.airTime = 0;
-    Game.terrain = [];
-    Game.coinsObj = [];
-    Game.fuelObj = [];
+    Game.score = 0; Game.coins = 0;
+    Game.fuel = 100; Game.nitro = 100;
+    Game.distance = 0; Game.airTime = 0;
+    Game.terrain = []; Game.coinsObj = []; Game.fuelObj = [];
     Game.particles = [];
     
+    // Reset Audio
     try {
         Game.audioMenu.pause();
         Game.audioGame.currentTime = 0;
         Game.audioGame.play();
     } catch(e) {}
 
-    generateTerrainChunk(0, 50);
+    generateChunk(0, 50);
     car = new CarPhysics(PlayerData.selectedVehicle);
     
-    document.getElementById('menu-screen').classList.add('hidden');
-    document.getElementById('garage-screen').classList.add('hidden');
-    document.getElementById('report-screen').classList.add('hidden');
+    // UI Hiding
+    ['menu-screen', 'garage-screen', 'report-screen'].forEach(id => 
+        document.getElementById(id).classList.add('hidden'));
     document.getElementById('hud-screen').classList.remove('hidden');
     
     requestAnimationFrame(loop);
 }
 
-function loop(timestamp) {
+function addScreenShake(amount) {
+    Game.camera.shake = amount;
+}
+
+function loop() {
     if (Game.state !== GAME_STATE.PLAYING) return;
 
-    const dt = timestamp - Game.lastTime;
-    Game.lastTime = timestamp;
-
-    car.update(dt);
-    updateCamera();
-
-    // Terrain gen
-    const rightEdgeIndex = Math.floor((Game.camera.x + Game.width + 500) / 50);
-    if (rightEdgeIndex > Game.terrain.length) {
-        generateTerrainChunk(Game.terrain.length, 20);
+    // 1. Physics
+    car.update();
+    
+    // 2. Camera (Smooth Follow + Shake)
+    const targetX = car.x - Game.width / 3;
+    const targetY = car.y - Game.height / 1.5;
+    
+    Game.camera.x += (targetX - Game.camera.x) * 0.1;
+    Game.camera.y += (targetY - Game.camera.y) * 0.1;
+    
+    // Shake Effect
+    if (Game.camera.shake > 0) {
+        Game.camera.x += (Math.random() - 0.5) * Game.camera.shake;
+        Game.camera.y += (Math.random() - 0.5) * Game.camera.shake;
+        Game.camera.shake *= 0.9;
+        if (Game.camera.shake < 0.5) Game.camera.shake = 0;
     }
 
+    // 3. Speed Lines (Canvas Overlay)
+    drawSpeedLines(car.vx);
+
+    // 4. Parallax Backgrounds
+    const p1 = document.getElementById('bg-layer-1');
+    const p2 = document.getElementById('bg-layer-2');
+    p1.style.backgroundPositionX = `${-Game.camera.x * 0.1}px`;
+    p2.style.backgroundPositionX = `${-Game.camera.x * 0.3}px`;
+
+    // 5. Terrain Gen & Cleanup
+    const edge = Math.floor((Game.camera.x + Game.width + 500) / 50);
+    if (edge > Game.terrain.length) generateChunk(Game.terrain.length, 20);
+
+    // 6. Logic
     checkCollectibles();
     
-    // Update Particles
-    for (let i = Game.particles.length - 1; i >= 0; i--) {
-        let p = Game.particles[i];
-        p.update();
-        if (p.life <= 0) Game.particles.splice(i, 1);
+    // 7. Particles
+    for(let i=Game.particles.length-1; i>=0; i--) {
+        Game.particles[i].update();
+        if(Game.particles[i].life <= 0) Game.particles.splice(i,1);
     }
 
     render();
     updateHUD();
 
-    if (Game.fuel <= 0 && Math.abs(car.vx) < 0.1) {
-        triggerGameOver("OUT OF FUEL");
-    }
+    if (Game.fuel <= 0 && Math.abs(car.vx) < 0.1) triggerGameOver("OUT OF FUEL");
 
     requestAnimationFrame(loop);
 }
 
-function checkCollectibles() {
-    Game.coinsObj.forEach(c => {
-        if (!c.collected) {
-            const dx = c.x - car.x;
-            const dy = c.y - car.y;
-            if (dx*dx + dy*dy < 2500) {
-                c.collected = true;
-                Game.coins++;
-                spawnSparkles(c.x, c.y); // Visual reward
-            }
+// Speed Lines Effect
+const slCanvas = document.getElementById('speed-lines');
+const slCtx = slCanvas.getContext('2d');
+slCanvas.width = window.innerWidth; slCanvas.height = window.innerHeight;
+
+function drawSpeedLines(speed) {
+    slCtx.clearRect(0,0,slCanvas.width, slCanvas.height);
+    if (speed > 15) { // Threshold for effect
+        slCtx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+        slCtx.lineWidth = 2;
+        slCtx.beginPath();
+        for(let i=0; i<10; i++) {
+            const y = Math.random() * slCanvas.height;
+            const len = Math.random() * 100 + 50;
+            slCtx.moveTo(slCanvas.width, y);
+            slCtx.lineTo(slCanvas.width - len, y);
         }
-    });
-    
-    Game.fuelObj.forEach(f => {
-        if (!f.collected) {
-            const dx = f.x - car.x;
-            const dy = f.y - car.y;
-            if (dx*dx + dy*dy < 2500) {
-                f.collected = true;
-                Game.fuel = 100;
-                spawnSparkles(f.x, f.y);
-            }
-        }
-    });
+        slCtx.stroke();
+    }
 }
 
+/* =========================================
+   8. RENDERING
+   ========================================= */
 function render() {
     const ctx = Game.ctx;
-    ctx.clearRect(0, 0, Game.width, Game.height);
+    ctx.clearRect(0,0,Game.width, Game.height);
     
+    // Sky
     const stage = STAGES.find(s => s.id === PlayerData.selectedStage);
     ctx.fillStyle = stage.sky;
-    ctx.fillRect(0, 0, Game.width, Game.height);
+    ctx.fillRect(0,0,Game.width, Game.height);
 
-    // Draw Terrain
+    // Terrain
     ctx.fillStyle = stage.color;
     ctx.beginPath();
-    const startIdx = Math.floor(Game.camera.x / 50);
-    const endIdx = startIdx + Math.ceil(Game.width / 50) + 2;
+    const start = Math.floor(Game.camera.x / 50);
+    const end = start + Math.ceil(Game.width/50) + 2;
     
-    if (Game.terrain[startIdx] !== undefined) {
-        ctx.moveTo(startIdx * 50 - Game.camera.x, Game.terrain[startIdx] - Game.camera.y);
-        for (let i = startIdx; i <= endIdx; i++) {
-            if (Game.terrain[i] !== undefined) {
-                ctx.lineTo(i * 50 - Game.camera.x, Game.terrain[i] - Game.camera.y);
-            }
+    if (Game.terrain[start] !== undefined) {
+        ctx.moveTo(start*50 - Game.camera.x, Game.terrain[start] - Game.camera.y);
+        for(let i=start; i<=end; i++) {
+            if(Game.terrain[i] !== undefined)
+                ctx.lineTo(i*50 - Game.camera.x, Game.terrain[i] - Game.camera.y);
         }
-        ctx.lineTo(endIdx * 50 - Game.camera.x, Game.height);
-        ctx.lineTo(startIdx * 50 - Game.camera.x, Game.height);
+        ctx.lineTo(end*50 - Game.camera.x, Game.height);
+        ctx.lineTo(start*50 - Game.camera.x, Game.height);
         ctx.fill();
     }
 
-    // Draw Items
-    ctx.font = "20px Arial";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    
+    // Items
     Game.coinsObj.forEach(c => {
-        if (!c.collected && c.x > Game.camera.x && c.x < Game.camera.x + Game.width) {
-            ctx.drawImage(ASSETS.loaded['coin'], c.x - 15 - Game.camera.x, c.y - 15 - Game.camera.y, 30, 30);
-        }
+        if(!c.c) ctx.drawImage(ASSETS.loaded['coin'], c.x - 15 - Game.camera.x, c.y - 15 - Game.camera.y, 30, 30);
     });
     
     Game.fuelObj.forEach(f => {
-        if (!f.collected && f.x > Game.camera.x && f.x < Game.camera.x + Game.width) {
-            ctx.drawImage(ASSETS.loaded['fuel'], f.x - 15 - Game.camera.x, f.y - 20 - Game.camera.y, 30, 40);
-        }
+        if(!f.c) ctx.drawImage(ASSETS.loaded['fuel'], f.x - 15 - Game.camera.x, f.y - 20 - Game.camera.y, 30, 40);
     });
 
-    // Draw Particles
+    // Particles
     Game.particles.forEach(p => p.draw(ctx));
 
+    // Car
     car.draw(ctx);
 }
 
+function checkCollectibles() {
+    Game.coinsObj.forEach(c => {
+        if (!c.c && (c.x - car.x)**2 + (c.y - car.y)**2 < 2500) {
+            c.c = true; Game.coins++; spawnParticles(c.x, c.y, 'gold', 'sparkle');
+            showPopupText("+1", c.x, c.y);
+        }
+    });
+    Game.fuelObj.forEach(f => {
+        if (!f.c && (f.x - car.x)**2 + (f.y - car.y)**2 < 2500) {
+            f.c = true; Game.fuel = 100; spawnParticles(f.x, f.y, 'red', 'sparkle');
+            showPopupText("FUEL", f.x, f.y);
+        }
+    });
+}
+
+function showPopupText(text, x, y) {
+    // Simple DOM based popup for performance
+    const div = document.createElement('div');
+    div.innerText = text;
+    div.className = 'popup-text';
+    document.getElementById('hud-screen').appendChild(div);
+    setTimeout(() => div.remove(), 1000);
+}
+
 function updateHUD() {
-    document.getElementById('dist-display').innerText = `${Game.distance}m`;
+    document.getElementById('dist-display').innerText = Game.distance;
     document.getElementById('session-coins').innerText = Game.coins;
     document.getElementById('fuel-fill').style.width = `${Math.max(0, Game.fuel)}%`;
+    document.getElementById('nitro-fill').style.width = `${Math.max(0, Game.nitro)}%`;
 }
 
 function triggerGameOver(reason) {
@@ -569,121 +580,94 @@ function triggerGameOver(reason) {
     document.getElementById('fail-reason').innerText = reason;
     document.getElementById('rep-distance').innerText = `${Game.distance}m`;
     document.getElementById('rep-coins').innerText = Game.coins;
-    document.getElementById('rep-air').innerText = `${(Game.airTime / 60).toFixed(1)}s`;
     
-    const snapCanvas = document.getElementById('snapshot-canvas');
-    const sCtx = snapCanvas.getContext('2d');
-    sCtx.fillStyle = "#333";
-    sCtx.fillRect(0,0,snapCanvas.width, snapCanvas.height);
-    sCtx.fillStyle = "white";
-    sCtx.fillText("CRASHED", 100, 70);
-
     setTimeout(() => {
         document.getElementById('hud-screen').classList.add('hidden');
         document.getElementById('report-screen').classList.remove('hidden');
     }, 1000);
 }
 
-// State Switcher and Buttons
-function switchState(newState) {
-    document.querySelectorAll('.hidden').forEach(el => {}); // Helper
-    
-    if (newState === GAME_STATE.MENU) {
+// Button Logic
+function populateGarage() {
+    // Re-use logic from previous versions, kept simple here for brevity
+    // But ensure the "Select" logic works
+    document.getElementById('garage-coins').innerText = PlayerData.coins;
+    const vList = document.getElementById('vehicle-list');
+    vList.innerHTML = '';
+    VEHICLES.forEach(v => {
+        const d = document.createElement('div');
+        const owned = PlayerData.unlockedVehicles.includes(v.id);
+        const sel = PlayerData.selectedVehicle === v.id;
+        d.className = `card ${owned?'unlocked':''} ${sel?'selected':''}`;
+        d.innerHTML = `<div><h4>${v.name}</h4>${owned?'OWNED':v.price+' 🪙'}</div><img src="${ASSETS.images[v.img].src}">`;
+        d.onclick = () => {
+            if(owned) { PlayerData.selectedVehicle = v.id; } 
+            else if(PlayerData.coins >= v.price) {
+                PlayerData.coins -= v.price; PlayerData.unlockedVehicles.push(v.id); PlayerData.selectedVehicle = v.id;
+            }
+            populateGarage();
+            localStorage.setItem('extreme_racing_save', JSON.stringify(PlayerData));
+        };
+        vList.appendChild(d);
+    });
+    // Similar logic for Stages...
+    const sList = document.getElementById('stage-list');
+    sList.innerHTML = '';
+    STAGES.forEach(s => {
+        const d = document.createElement('div');
+        const owned = PlayerData.unlockedStages.includes(s.id);
+        const sel = PlayerData.selectedStage === s.id;
+        d.className = `card ${owned?'unlocked':''} ${sel?'selected':''}`;
+        d.style.background = s.color;
+        d.innerHTML = `<div><h4>${s.name}</h4>${owned?'OWNED':s.price+' 🪙'}</div>`;
+        d.onclick = () => {
+            if(owned) { PlayerData.selectedStage = s.id; }
+            else if(PlayerData.coins >= s.price) {
+                PlayerData.coins -= s.price; PlayerData.unlockedStages.push(s.id); PlayerData.selectedStage = s.id;
+            }
+            populateGarage();
+            localStorage.setItem('extreme_racing_save', JSON.stringify(PlayerData));
+        };
+        sList.appendChild(d);
+    });
+}
+
+function switchState(s) {
+    ['menu-screen', 'garage-screen', 'report-screen'].forEach(id => document.getElementById(id).classList.add('hidden'));
+    if(s === GAME_STATE.MENU) {
         document.getElementById('menu-screen').classList.remove('hidden');
-        document.getElementById('garage-screen').classList.add('hidden');
-        document.getElementById('report-screen').classList.add('hidden');
         document.getElementById('menu-total-coins').innerText = PlayerData.coins;
-        Game.audioGame.pause();
-        Game.audioMenu.play().catch(e=>{});
+        Game.audioGame.pause(); Game.audioMenu.play().catch(()=>{});
     }
-    else if (newState === GAME_STATE.GARAGE) {
-        document.getElementById('menu-screen').classList.add('hidden');
+    if(s === GAME_STATE.GARAGE) {
         document.getElementById('garage-screen').classList.remove('hidden');
         populateGarage();
     }
 }
 
-// Populate Garage (Same logic as before, ensuring visuals update)
-function populateGarage() {
-    document.getElementById('garage-coins').innerText = PlayerData.coins;
-    
-    const vList = document.getElementById('vehicle-list');
-    vList.innerHTML = '';
-    VEHICLES.forEach(v => {
-        const div = document.createElement('div');
-        const unlocked = PlayerData.unlockedVehicles.includes(v.id);
-        const selected = PlayerData.selectedVehicle === v.id;
-        div.className = `card ${unlocked ? 'unlocked' : ''} ${selected ? 'selected' : ''}`;
-        div.innerHTML = `
-            <div class="card-info">
-                <h4>${v.name}</h4>
-                ${unlocked ? '<span class="owned-tag">OWNED</span>' : `<span class="price-tag">${v.price} 🪙</span>`}
-            </div>
-            <img src="${ASSETS.images[v.img] ? ASSETS.images[v.img].src : ''}">
-        `;
-        div.onclick = () => {
-            if (unlocked) {
-                PlayerData.selectedVehicle = v.id;
-                populateGarage();
-                localStorage.setItem('extreme_racing_save', JSON.stringify(PlayerData));
-            } else if (PlayerData.coins >= v.price) {
-                PlayerData.coins -= v.price;
-                PlayerData.unlockedVehicles.push(v.id);
-                PlayerData.selectedVehicle = v.id;
-                populateGarage();
-                localStorage.setItem('extreme_racing_save', JSON.stringify(PlayerData));
-            }
-        };
-        vList.appendChild(div);
-    });
-
-    const sList = document.getElementById('stage-list');
-    sList.innerHTML = '';
-    STAGES.forEach(s => {
-        const div = document.createElement('div');
-        const unlocked = PlayerData.unlockedStages.includes(s.id);
-        const selected = PlayerData.selectedStage === s.id;
-        div.className = `card ${unlocked ? 'unlocked' : ''} ${selected ? 'selected' : ''}`;
-        div.style.background = s.color;
-        div.innerHTML = `
-            <div class="card-info">
-                <h4 style="color:black; text-shadow:none;">${s.name}</h4>
-                ${unlocked ? '<span class="owned-tag" style="color:black">OWNED</span>' : `<span class="price-tag">${s.price} 🪙</span>`}
-            </div>
-        `;
-        div.onclick = () => {
-            if (unlocked) {
-                PlayerData.selectedStage = s.id;
-                populateGarage();
-                localStorage.setItem('extreme_racing_save', JSON.stringify(PlayerData));
-            } else if (PlayerData.coins >= s.price) {
-                PlayerData.coins -= s.price;
-                PlayerData.unlockedStages.push(s.id);
-                PlayerData.selectedStage = s.id;
-                populateGarage();
-                localStorage.setItem('extreme_racing_save', JSON.stringify(PlayerData));
-            }
-        };
-        sList.appendChild(div);
-    });
-}
-
 // Listeners
-window.addEventListener('keydown', (e) => {
-    if (e.code === 'ArrowRight' || e.code === 'KeyD') Game.keys.gas = true;
-    if (e.code === 'ArrowLeft' || e.code === 'KeyA') Game.keys.brake = true;
+window.addEventListener('keydown', e => {
+    if(e.code==='ArrowRight'||e.code==='KeyD') Game.keys.gas = true;
+    if(e.code==='ArrowLeft'||e.code==='KeyA') Game.keys.brake = true;
+    if(e.code==='ShiftLeft') Game.keys.nitro = true;
 });
-window.addEventListener('keyup', (e) => {
-    if (e.code === 'ArrowRight' || e.code === 'KeyD') Game.keys.gas = false;
-    if (e.code === 'ArrowLeft' || e.code === 'KeyA') Game.keys.brake = false;
+window.addEventListener('keyup', e => {
+    if(e.code==='ArrowRight'||e.code==='KeyD') Game.keys.gas = false;
+    if(e.code==='ArrowLeft'||e.code==='KeyA') Game.keys.brake = false;
+    if(e.code==='ShiftLeft') Game.keys.nitro = false;
 });
 
-const btnGas = document.getElementById('btn-gas');
-const btnBrake = document.getElementById('btn-brake');
-btnGas.addEventListener('touchstart', (e) => { e.preventDefault(); Game.keys.gas = true; });
-btnGas.addEventListener('touchend', (e) => { e.preventDefault(); Game.keys.gas = false; });
-btnBrake.addEventListener('touchstart', (e) => { e.preventDefault(); Game.keys.brake = true; });
-btnBrake.addEventListener('touchend', (e) => { e.preventDefault(); Game.keys.brake = false; });
+// Touch
+const bGas = document.getElementById('btn-gas');
+const bBrake = document.getElementById('btn-brake');
+const bNitro = document.getElementById('btn-nitro');
+
+bGas.addEventListener('touchstart', e=>{ e.preventDefault(); Game.keys.gas=true; });
+bGas.addEventListener('touchend', e=>{ e.preventDefault(); Game.keys.gas=false; });
+bBrake.addEventListener('touchstart', e=>{ e.preventDefault(); Game.keys.brake=true; });
+bBrake.addEventListener('touchend', e=>{ e.preventDefault(); Game.keys.brake=false; });
+bNitro.addEventListener('touchstart', e=>{ e.preventDefault(); Game.keys.nitro=true; });
+bNitro.addEventListener('touchend', e=>{ e.preventDefault(); Game.keys.nitro=false; });
 
 document.getElementById('btn-start').onclick = startGame;
 document.getElementById('btn-garage').onclick = () => switchState(GAME_STATE.GARAGE);
@@ -692,12 +676,6 @@ document.getElementById('btn-menu-return').onclick = () => switchState(GAME_STAT
 document.getElementById('btn-restart').onclick = startGame;
 
 window.onload = () => {
-    window.addEventListener('resize', () => {
-        Game.width = window.innerWidth;
-        Game.height = window.innerHeight;
-        Game.canvas.width = Game.width;
-        Game.canvas.height = Game.height;
-    });
     window.dispatchEvent(new Event('resize'));
     loadAssets();
-};
+}
