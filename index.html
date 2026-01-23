@@ -3,118 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="description" content="Extreme Racing V20 - Silk Smooth Edition">
-    <title>Extreme Racing | Solanki Visions</title>
+    <title>NEON RACER | The Solanki Visions</title>
     <link rel="stylesheet" href="styles.css">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
-    <div id="loading-screen">
+    <div id="loader">
         <div class="loader-box">
-            <h1 class="neon-title">EXTREME RACING</h1>
-            <div class="load-track">
-                <div id="load-bar" class="load-fill"></div>
+            <h1 class="glitch-text" data-text="NEON RACER">NEON RACER</h1>
+            <div class="bar-container">
+                <div id="load-bar"></div>
             </div>
-            <p id="load-text">LOADING ASSETS...</p>
-            <p class="brand">Made by The Solanki Visions</p>
+            <p>SYSTEM INITIALIZING...</p>
         </div>
     </div>
 
-    <div id="menu-screen" class="hidden">
-        <div class="menu-content">
-            <div class="logo-wrapper">
-                <h1 class="main-logo">EXTREME<br>RACING</h1>
-                <div class="logo-line"></div>
-                <p class="studio-name">THE SOLANKI VISIONS STUDIO</p>
+    <div id="menu" class="screen">
+        <div class="content">
+            <h1 class="hero-title">NEON<br><span class="highlight">RACER</span></h1>
+            <p class="subtitle">EST. 2026 | THE SOLANKI VISIONS</p>
+            
+            <div class="btn-group">
+                <button id="btn-play" class="cyber-btn primary">
+                    <span class="icon">▶</span> INITIATE RUN
+                </button>
+                <button id="btn-garage" class="cyber-btn secondary">
+                    <span class="icon">⚙</span> GARAGE
+                </button>
             </div>
 
-            <div class="menu-actions">
-                <button id="btn-start" class="menu-btn start-btn">START RACE</button>
-                <button id="btn-garage" class="menu-btn garage-btn">GARAGE</button>
-            </div>
-
-            <div class="coin-badge">
-                <img src="coin.png" class="coin-icon-small" alt="C">
+            <div class="wallet">
+                <img src="coin.png" class="coin-icon">
                 <span id="menu-coins">0</span>
             </div>
         </div>
+        <div class="scanlines"></div>
     </div>
 
-    <div id="garage-screen" class="hidden">
-        <div class="header-bar">
-            <button id="btn-back" class="nav-btn">◀ BACK</button>
+    <div id="garage" class="screen hidden">
+        <div class="header">
+            <button id="btn-back" class="nav-btn">❮ RETURN</button>
             <h2>GARAGE</h2>
-            <div class="coin-badge-small">
-                <span id="garage-coins-val">0</span> 🪙
-            </div>
+            <div class="wallet-small">🪙 <span id="garage-coins">0</span></div>
         </div>
-
-        <div class="scroll-zone">
-            <h3 class="zone-title">VEHICLES</h3>
-            <div id="vehicle-list" class="card-row"></div>
+        
+        <div class="scroll-area">
+            <h3 class="section-title">SELECT CHASSIS</h3>
+            <div id="car-list" class="card-track"></div>
             
-            <h3 class="zone-title">STAGES</h3>
-            <div id="stage-list" class="card-row"></div>
+            <h3 class="section-title">SELECT BIOME</h3>
+            <div id="stage-list" class="card-track"></div>
         </div>
     </div>
 
-    <div id="hud-screen" class="hidden">
+    <div id="hud" class="screen hidden">
         <div class="hud-top">
-            <div class="meters">
-                <div class="meter-row">
-                    <span class="m-label">FUEL</span>
-                    <div class="m-track"><div id="fuel-bar" class="m-fill fuel-color"></div></div>
+            <div class="bars">
+                <div class="bar-row">
+                    <span>FUEL</span>
+                    <div class="bar-bg"><div id="hud-fuel" class="bar-fill red"></div></div>
                 </div>
-                <div class="meter-row">
-                    <span class="m-label">NITRO</span>
-                    <div class="m-track"><div id="nitro-bar" class="m-fill nitro-color"></div></div>
+                <div class="bar-row">
+                    <span>NITRO</span>
+                    <div class="bar-bg"><div id="hud-nitro" class="bar-fill blue"></div></div>
                 </div>
             </div>
-            
-            <div class="score-box">
-                <div id="dist-val">0 m</div>
-                <div class="coin-row"><img src="coin.png" width="20"> <span id="sess-coins">0</span></div>
+            <div class="score">
+                <div id="hud-dist">0 M</div>
+                <div class="hud-coins">🪙 <span id="hud-coin-val">0</span></div>
             </div>
         </div>
 
         <div class="controls">
-            <button id="btn-brake" class="pedal brake">BRAKE</button>
-            <div class="right-group">
-                <button id="btn-nitro" class="pedal nitro">N2O</button>
-                <button id="btn-gas" class="pedal gas">GAS</button>
+            <button id="touch-brake" class="pedal brake">BRAKE</button>
+            <div class="right-pedals">
+                <button id="touch-nitro" class="pedal nitro">N2O</button>
+                <button id="touch-gas" class="pedal gas">GAS</button>
             </div>
         </div>
     </div>
 
-    <div id="report-screen" class="hidden">
-        <div class="report-panel">
-            <h2>RUN ENDED</h2>
-            <div class="polaroid-frame">
-                <canvas id="snap-canvas"></canvas>
-                <div class="stamp" id="fail-msg">WRECKED</div>
+    <div id="report" class="screen hidden">
+        <div class="report-box">
+            <h2 class="neon-red">SYSTEM CRITICAL</h2>
+            <div class="snap-frame">
+                <canvas id="snap-cvs"></canvas>
+                <div class="stamp" id="death-msg">WRECKED</div>
             </div>
             
-            <div class="stats-list">
-                <div class="s-row"><span>DISTANCE</span> <span id="end-dist">0m</span></div>
-                <div class="s-row"><span>COINS</span> <span id="end-coins" style="color:#ffd700">0</span></div>
-                <div class="s-row"><span>AIR TIME</span> <span id="end-air">0s</span></div>
+            <div class="stats">
+                <div class="stat-row"><span>DISTANCE</span> <span id="rpt-dist">0m</span></div>
+                <div class="stat-row"><span>EARNINGS</span> <span id="rpt-coins" class="gold">0</span></div>
+                <div class="stat-row"><span>AIR TIME</span> <span id="rpt-air">0s</span></div>
             </div>
 
-            <div class="report-btns">
-                <button id="btn-home" class="menu-btn garage-btn">MENU</button>
-                <button id="btn-retry" class="menu-btn start-btn">RETRY</button>
+            <div class="btn-group row">
+                <button id="btn-home" class="cyber-btn small">MENU</button>
+                <button id="btn-retry" class="cyber-btn small primary">RETRY</button>
             </div>
         </div>
     </div>
 
-    <canvas id="game-canvas"></canvas>
-
-    <audio id="music-menu" src="background-audio-non-playing.mp4" loop></audio>
-    <audio id="music-game" src="background-audio-playing.mp4" loop></audio>
+    <canvas id="game"></canvas>
 
     <script src="game.js"></script>
 </body>
