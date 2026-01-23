@@ -3,57 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="description" content="Extreme Racing - Adrenaline Edition">
+    <meta name="description" content="Extreme Racing - Smooth Physics Edition by The Solanki Visions">
     <title>Extreme Racing | The Solanki Visions</title>
+    
     <link rel="stylesheet" href="styles.css">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@900&family=Segoe+UI:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
     <div id="loading-screen">
         <div class="loader-content">
             <h1>EXTREME RACING</h1>
-            <div class="progress-bar">
-                <div class="fill" id="loader-fill"></div>
+            <div class="loading-status">
+                <div class="spinner"></div>
+                <p id="loader-text">Loading Assets...</p>
             </div>
-            <p id="loader-text">Initializing Physics Engine...</p>
+            <div class="progress-bar-container">
+                <div class="progress-bar-fill" id="loader-fill"></div>
+            </div>
             <p class="brand-text">Made by The Solanki Visions</p>
         </div>
     </div>
 
     <div id="menu-screen" class="hidden">
         <div class="logo-container">
-            <h1 class="game-title">EXTREME<br>RACING</h1>
+            <h1 class="game-title glitch-effect" data-text="EXTREME RACING">EXTREME<br>RACING</h1>
             <p class="studio-tag">Made by The Solanki Visions</p>
         </div>
         
-        <div class="menu-buttons">
+        <div class="menu-actions">
             <button id="btn-garage" class="menu-btn">GARAGE</button>
-            <button id="btn-start" class="menu-btn primary-btn">START ENGINE</button>
+            <button id="btn-start" class="menu-btn primary-btn pulse-anim">START ENGINE</button>
         </div>
         
-        <div class="currency-display">
+        <div class="total-coins-display">
             <span class="coin-icon">🪙</span>
             <span id="menu-total-coins">0</span>
         </div>
     </div>
 
     <div id="garage-screen" class="hidden">
-        <div class="garage-header">
-            <button id="btn-back-menu" class="icon-btn">←</button>
+        <div class="garage-top-bar">
+            <button id="btn-back-menu" class="nav-btn">← BACK</button>
             <h2>GARAGE</h2>
-            <div class="currency-display">
+            <div class="coin-wallet">
                 <span>🪙</span> <span id="garage-coins">0</span>
             </div>
         </div>
 
-        <div class="selector-section">
-            <h3>SELECT RIDE</h3>
-            <div class="scroll-container" id="vehicle-list"></div>
+        <div class="selection-area">
+            <h3 class="section-label">SELECT VEHICLE</h3>
+            <div class="horizontal-scroll" id="vehicle-list">
+                </div>
         </div>
 
-        <div class="selector-section">
-            <h3>SELECT BIOME</h3>
-            <div class="scroll-container" id="stage-list"></div>
+        <div class="selection-area">
+            <h3 class="section-label">SELECT STAGE</h3>
+            <div class="horizontal-scroll" id="stage-list">
+                </div>
         </div>
 
         <div class="garage-footer">
@@ -62,84 +72,83 @@
     </div>
 
     <div id="hud-screen" class="hidden">
-        <div id="parallax-bg">
-            <div id="bg-layer-1" class="parallax-layer"></div> <div id="bg-layer-2" class="parallax-layer"></div> </div>
+        <div id="sky-layer"></div>
+        <div id="mountain-layer"></div>
+        
+        <canvas id="fx-canvas"></canvas>
 
-        <canvas id="speed-lines"></canvas>
-
-        <div class="top-bar">
-            <div class="meter-group">
-                <span class="label">FUEL</span>
-                <div class="bar-bg">
-                    <div id="fuel-fill" class="bar-fill fuel"></div>
+        <div class="hud-top">
+            <div class="gauge-cluster">
+                <div class="gauge-row">
+                    <span class="gauge-label">FUEL</span>
+                    <div class="gauge-bar-bg">
+                        <div id="fuel-bar" class="gauge-fill fuel-color"></div>
+                    </div>
+                </div>
+                <div class="gauge-row">
+                    <span class="gauge-label">NITRO</span>
+                    <div class="gauge-bar-bg">
+                        <div id="nitro-bar" class="gauge-fill nitro-color"></div>
+                    </div>
                 </div>
             </div>
-            
-            <div class="meter-group">
-                <span class="label">NITRO</span>
-                <div class="bar-bg">
-                    <div id="nitro-fill" class="bar-fill nitro"></div>
-                </div>
-            </div>
 
-            <div class="score-group">
-                <div class="distance-display"><span id="dist-display">0</span>m</div>
-                <div class="coins-display">🪙 <span id="session-coins">0</span></div>
+            <div class="score-cluster">
+                <div class="distance-text"><span id="dist-display">0</span> m</div>
+                <div class="coins-text">🪙 <span id="session-coins">0</span></div>
             </div>
         </div>
 
-        <div class="controls-overlay">
-            <div class="left-controls">
-                <button id="btn-brake" class="control-btn brake">BRAKE</button>
+        <div class="touch-controls">
+            <div class="touch-left">
+                <button id="btn-brake" class="pedal brake-pedal">BRAKE</button>
             </div>
-            <div class="right-controls">
-                <button id="btn-nitro" class="control-btn nitro-btn">N2O</button>
-                <button id="btn-gas" class="control-btn gas">GAS</button>
+            <div class="touch-right">
+                <button id="btn-nitro" class="pedal nitro-pedal">N2O</button>
+                <button id="btn-gas" class="pedal gas-pedal">GAS</button>
             </div>
         </div>
 
-        <div id="message-area"></div>
+        <div id="popup-container"></div>
     </div>
 
     <div id="report-screen" class="hidden">
-        <div class="report-card">
-            <h2>RUN ANALYSIS</h2>
-            <div class="snapshot-wrapper">
+        <div class="report-panel">
+            <h2 id="report-title">CRASHED!</h2>
+            
+            <div class="photo-frame">
                 <canvas id="snapshot-canvas"></canvas>
-                <div class="stamp" id="fail-reason">CRASHED</div>
+                <div class="stamp-overlay" id="fail-reason">HEAD INJURY</div>
             </div>
             
-            <div class="stats-grid">
-                <div class="stat-box">
-                    <span class="label">DISTANCE</span>
-                    <span class="value" id="rep-distance">0m</span>
+            <div class="stats-container">
+                <div class="stat-item">
+                    <span class="stat-label">DISTANCE</span>
+                    <span class="stat-value" id="rep-distance">0m</span>
                 </div>
-                <div class="stat-box">
-                    <span class="label">COINS</span>
-                    <span class="value highlight" id="rep-coins">0</span>
+                <div class="stat-item">
+                    <span class="stat-label">COINS</span>
+                    <span class="stat-value highlight-gold" id="rep-coins">0</span>
                 </div>
-                <div class="stat-box">
-                    <span class="label">AIR TIME</span>
-                    <span class="value" id="rep-air">0s</span>
+                <div class="stat-item">
+                    <span class="stat-label">FLIPS</span>
+                    <span class="stat-value" id="rep-flips">0</span>
                 </div>
-                <div class="stat-box">
-                    <span class="label">FLIPS</span>
-                    <span class="value" id="rep-stunts">0</span>
+                <div class="stat-item">
+                    <span class="stat-label">TOTAL EARNED</span>
+                    <span class="stat-value highlight-green" id="rep-total">0</span>
                 </div>
             </div>
 
-            <div class="report-actions">
-                <button id="btn-menu-return" class="menu-btn">MENU</button>
-                <button id="btn-restart" class="menu-btn primary-btn">RETRY</button>
+            <div class="report-buttons">
+                <button id="btn-menu-return" class="action-btn secondary">GARAGE</button>
+                <button id="btn-restart" class="action-btn primary">RETRY</button>
             </div>
-            <p class="brand-text-small">Made by The Solanki Visions</p>
+            <p class="watermark">Made by The Solanki Visions</p>
         </div>
     </div>
 
     <canvas id="game-canvas"></canvas>
-
-    <video id="audio-bg-menu" src="background-audio-non-playing.mp4" loop style="display:none;"></video>
-    <video id="audio-bg-game" src="background-audio-playing.mp4" loop style="display:none;"></video>
 
     <script src="game.js"></script>
 </body>
